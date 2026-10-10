@@ -288,24 +288,24 @@ export const AnalyzePage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 bg-slate-50">
       {/* Title */}
       <div className="space-y-2 text-center sm:text-left">
-        <div className="inline-flex items-center gap-2 text-xs font-mono text-cyan-400 bg-cyan-950/40 px-3 py-1 rounded-full border border-cyan-800/40">
-          <Car className="w-3.5 h-3.5" />
+        <div className="inline-flex items-center gap-2 text-xs font-mono text-slate-800 bg-white px-3 py-1 rounded-full border border-slate-200 shadow-2xs">
+          <Car className="w-3.5 h-3.5 text-slate-950" />
           <span>Vehicle Valuation & Diagnostics</span>
         </div>
-        <h1 className="text-3xl font-extrabold text-white tracking-tight">
+        <h1 className="text-3xl font-extrabold text-slate-950 tracking-tight">
           Vehicle Valuation & Battery Health Analysis
         </h1>
-        <p className="text-slate-400 text-sm max-w-2xl leading-relaxed">
+        <p className="text-slate-600 text-sm max-w-2xl leading-relaxed">
           Provide your vehicle details to compute market resale worth and depreciation. If analyzing a fully electric vehicle, battery State of Health (SOH) diagnostic inputs will activate below.
         </p>
       </div>
 
       {error && (
-        <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-800/80 text-rose-300 text-sm flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
+        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
           <div>
             <strong className="block font-semibold">Evaluation Error:</strong>
             {error}
@@ -315,27 +315,27 @@ export const AnalyzePage: React.FC = () => {
 
       <form onSubmit={handleSubmit} autoComplete="off" className="space-y-8">
         {/* SECTION 1: General Vehicle Information */}
-        <div className="p-6 sm:p-8 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-6 shadow-xl">
-          <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+        <div className="p-6 sm:p-8 rounded-2xl bg-white border border-slate-200 space-y-6 shadow-sm">
+          <div className="flex items-center justify-between pb-4 border-b border-slate-200">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center text-cyan-400 font-bold">
+              <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center text-white font-bold text-sm">
                 1
               </div>
-              <h2 className="text-lg font-bold text-white">Vehicle Specifications</h2>
+              <h2 className="text-lg font-bold text-slate-950">Vehicle Specifications</h2>
             </div>
-            <span className="text-xs font-mono text-slate-400">Required inputs</span>
+            <span className="text-xs font-mono text-slate-500">Required inputs</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             {/* Brand */}
             <div className="space-y-2">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
                 Brand / Manufacturer
               </label>
               <select
                 value={brand}
                 onChange={(e) => setBrand(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2.5 text-white text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
+                className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3.5 py-2.5 text-slate-900 text-sm focus:outline-none focus:bg-white focus:border-black focus:ring-1 focus:ring-black transition-all"
               >
                 {brands.map((b) => (
                   <option key={b} value={b}>
@@ -347,14 +347,14 @@ export const AnalyzePage: React.FC = () => {
 
             {/* Model */}
             <div className="space-y-2">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
                 Model Series
               </label>
               {availableModels.length > 0 ? (
                 <select
                   value={model}
                   onChange={(e) => setModel(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2.5 text-white text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3.5 py-2.5 text-slate-900 text-sm focus:outline-none focus:bg-white focus:border-black focus:ring-1 focus:ring-black transition-all"
                 >
                   {availableModels.map((m) => (
                     <option key={m} value={m}>
@@ -368,7 +368,7 @@ export const AnalyzePage: React.FC = () => {
                   value={model}
                   onChange={(e) => setModel(e.target.value)}
                   placeholder="e.g. Swift, Creta, Nexon EV"
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2.5 text-white text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3.5 py-2.5 text-slate-900 text-sm focus:outline-none focus:bg-white focus:border-black focus:ring-1 focus:ring-black transition-all"
                   required
                 />
               )}
@@ -376,7 +376,7 @@ export const AnalyzePage: React.FC = () => {
 
             {/* Manufacturing Year */}
             <div className="space-y-2">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
                 Manufacturing Year
               </label>
               <input
@@ -385,7 +385,7 @@ export const AnalyzePage: React.FC = () => {
                 max={new Date().getFullYear()}
                 value={year}
                 onChange={(e) => setYear(Number(e.target.value))}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2.5 text-white text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all font-mono"
+                className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3.5 py-2.5 text-slate-900 text-sm focus:outline-none focus:bg-white focus:border-black focus:ring-1 focus:ring-black transition-all font-mono"
                 required
               />
               <p className="text-[11px] text-slate-500 font-mono">
@@ -395,7 +395,7 @@ export const AnalyzePage: React.FC = () => {
 
             {/* Kilometers Driven */}
             <div className="space-y-2">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
                 Kilometres Driven (Odometer)
               </label>
               <input
@@ -405,7 +405,7 @@ export const AnalyzePage: React.FC = () => {
                 step="500"
                 value={kmDriven}
                 onChange={(e) => setKmDriven(Number(e.target.value))}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2.5 text-white text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all font-mono"
+                className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3.5 py-2.5 text-slate-900 text-sm focus:outline-none focus:bg-white focus:border-black focus:ring-1 focus:ring-black transition-all font-mono"
                 required
               />
               <p className="text-[11px] text-slate-500 font-mono">
@@ -415,10 +415,10 @@ export const AnalyzePage: React.FC = () => {
 
             {/* Fuel Type */}
             <div className="space-y-2">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center justify-between">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 flex items-center justify-between">
                 <span>Fuel Type</span>
                 {fuel === 'Electric' && (
-                  <span className="text-[10px] text-cyan-400 font-mono font-medium animate-pulse">
+                  <span className="text-[10px] text-cyan-700 bg-cyan-50 border border-cyan-200 px-2 py-0.5 rounded font-mono font-medium animate-pulse">
                     ⚡ EV Mode Active
                   </span>
                 )}
@@ -426,10 +426,10 @@ export const AnalyzePage: React.FC = () => {
               <select
                 value={fuel}
                 onChange={(e) => handleFuelChange(e.target.value)}
-                className={`w-full bg-slate-950 border rounded-lg px-3.5 py-2.5 text-white text-sm focus:outline-none transition-all ${
+                className={`w-full bg-slate-50 border rounded-lg px-3.5 py-2.5 text-slate-900 text-sm focus:outline-none focus:bg-white transition-all ${
                   fuel === 'Electric'
                     ? 'border-cyan-500 ring-1 ring-cyan-500'
-                    : 'border-slate-700 focus:border-cyan-500'
+                    : 'border-slate-300 focus:border-black focus:ring-1 focus:ring-black'
                 }`}
               >
                 <option value="Petrol">Petrol</option>
@@ -443,13 +443,13 @@ export const AnalyzePage: React.FC = () => {
 
             {/* Transmission */}
             <div className="space-y-2">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
                 Transmission
               </label>
               <select
                 value={transmission}
                 onChange={(e) => setTransmission(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2.5 text-white text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
+                className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3.5 py-2.5 text-slate-900 text-sm focus:outline-none focus:bg-white focus:border-black focus:ring-1 focus:ring-black transition-all"
               >
                 <option value="Manual">Manual</option>
                 <option value="Automatic">Automatic</option>
@@ -458,13 +458,13 @@ export const AnalyzePage: React.FC = () => {
 
             {/* Ownership */}
             <div className="space-y-2">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
                 Ownership History
               </label>
               <select
                 value={owner}
                 onChange={(e) => setOwner(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2.5 text-white text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
+                className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3.5 py-2.5 text-slate-900 text-sm focus:outline-none focus:bg-white focus:border-black focus:ring-1 focus:ring-black transition-all"
               >
                 <option value="First Owner">First Owner</option>
                 <option value="Second Owner">Second Owner</option>
@@ -475,13 +475,13 @@ export const AnalyzePage: React.FC = () => {
 
             {/* Seller Type */}
             <div className="space-y-2">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
                 Seller Type
               </label>
               <select
                 value={sellerType}
                 onChange={(e) => setSellerType(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2.5 text-white text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
+                className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3.5 py-2.5 text-slate-900 text-sm focus:outline-none focus:bg-white focus:border-black focus:ring-1 focus:ring-black transition-all"
               >
                 <option value="Individual">Individual</option>
                 <option value="Dealer">Dealer</option>
@@ -491,10 +491,10 @@ export const AnalyzePage: React.FC = () => {
           </div>
 
           {/* Reference Price */}
-          <div className="pt-4 border-t border-slate-800 space-y-3">
+          <div className="pt-4 border-t border-slate-200 space-y-3">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-                <DollarSign className="w-3.5 h-3.5 text-cyan-400" />
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                <DollarSign className="w-3.5 h-3.5 text-slate-900" />
                 <span>Original Invoice / Reference Price (INR ₹)</span>
                 <span className="text-slate-500 font-normal lowercase">(optional)</span>
               </label>
@@ -502,14 +502,14 @@ export const AnalyzePage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setOriginalPrice('')}
-                  className="text-[11px] text-slate-400 hover:text-rose-400 font-mono transition-colors"
+                  className="text-[11px] text-rose-600 hover:text-rose-700 font-mono transition-colors underline cursor-pointer"
                 >
                   Clear Price
                 </button>
               )}
             </div>
             <div className="relative">
-              <span className="absolute left-3.5 top-2.5 text-slate-500 font-mono text-sm">₹</span>
+              <span className="absolute left-3.5 top-2.5 text-slate-400 font-mono text-sm">₹</span>
               <input
                 type="number"
                 id="originalPrice"
@@ -520,11 +520,11 @@ export const AnalyzePage: React.FC = () => {
                 placeholder="e.g. 850000 (leave blank to predict resale value only)"
                 value={originalPrice}
                 onChange={(e) => setOriginalPrice(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg pl-8 pr-4 py-2.5 text-white text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all font-mono"
+                className="w-full bg-slate-50 border border-slate-300 rounded-lg pl-8 pr-4 py-2.5 text-slate-900 text-sm focus:outline-none focus:bg-white focus:border-black focus:ring-1 focus:ring-black transition-all font-mono"
               />
             </div>
-            <p className="text-[11px] text-slate-400/90 leading-relaxed">
-              <strong className="text-slate-300">Why provide this?</strong> When an original purchase price is supplied, AutoCX computes the exact rupee depreciation amount and cumulative value retention percentage. If left blank, AutoCX will estimate the fair market resale value without depreciation.
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              <strong className="text-slate-700">Why provide this?</strong> When an original purchase price is supplied, AutoCX computes the exact rupee depreciation amount and cumulative value retention percentage. If left blank, AutoCX will estimate the fair market resale value without depreciation.
             </p>
           </div>
 
@@ -533,16 +533,16 @@ export const AnalyzePage: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowAdvancedSpecs(!showAdvancedSpecs)}
-              className="text-xs text-cyan-400 hover:text-cyan-300 font-mono flex items-center gap-1.5 transition-colors"
+              className="text-xs text-slate-800 hover:text-black font-mono flex items-center gap-1.5 transition-colors cursor-pointer"
             >
               <Sliders className="w-3.5 h-3.5" />
               <span>{showAdvancedSpecs ? 'Hide' : 'Customize'} Technical Specifications (Engine, Power, Mileage, Seats)</span>
             </button>
 
             {showAdvancedSpecs && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4 pt-4 border-t border-slate-800/60">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4 pt-4 border-t border-slate-200">
                 <div className="space-y-1">
-                  <label className="text-[11px] text-slate-400 font-mono">
+                  <label className="text-[11px] text-slate-600 font-mono">
                     {fuel === 'Electric' ? 'Displacement (EV)' : 'Engine (CC)'}
                   </label>
                   <input
@@ -550,37 +550,37 @@ export const AnalyzePage: React.FC = () => {
                     disabled={fuel === 'Electric'}
                     value={fuel === 'Electric' ? '0' : engineCc}
                     onChange={(e) => setEngineCc(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-white font-mono disabled:opacity-50"
+                    className="w-full bg-slate-50 border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-900 font-mono disabled:opacity-50 focus:bg-white focus:border-black"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[11px] text-slate-400 font-mono">Max Power (bhp)</label>
+                  <label className="text-[11px] text-slate-600 font-mono">Max Power (bhp)</label>
                   <input
                     type="number"
                     value={maxPowerBhp}
                     onChange={(e) => setMaxPowerBhp(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-white font-mono"
+                    className="w-full bg-slate-50 border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-900 font-mono focus:bg-white focus:border-black"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[11px] text-slate-400 font-mono">Mileage (kmpl)</label>
+                  <label className="text-[11px] text-slate-600 font-mono">Mileage (kmpl)</label>
                   <input
                     type="number"
                     step="0.1"
                     value={mileageKmpl}
                     onChange={(e) => setMileageKmpl(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-white font-mono"
+                    className="w-full bg-slate-50 border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-900 font-mono focus:bg-white focus:border-black"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[11px] text-slate-400 font-mono">Seats</label>
+                  <label className="text-[11px] text-slate-600 font-mono">Seats</label>
                   <input
                     type="number"
                     min="2"
                     max="10"
                     value={seats}
                     onChange={(e) => setSeats(Number(e.target.value))}
-                    className="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-white font-mono"
+                    className="w-full bg-slate-50 border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-900 font-mono focus:bg-white focus:border-black"
                   />
                 </div>
               </div>
@@ -590,35 +590,35 @@ export const AnalyzePage: React.FC = () => {
 
         {/* SECTION 2: CONDITIONAL EV BATTERY HEALTH SECTION */}
         {fuel === 'Electric' ? (
-          <div className="p-6 sm:p-8 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-cyan-950/30 border border-cyan-500/40 space-y-6 shadow-xl relative overflow-hidden">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-cyan-800/40 gap-3">
+          <div className="p-6 sm:p-8 rounded-2xl bg-gradient-to-br from-cyan-50/60 via-white to-sky-50/50 border border-cyan-300/80 space-y-6 shadow-sm relative overflow-hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-cyan-200 gap-3">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-cyan-500 text-slate-950 font-bold flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-black text-white font-bold flex items-center justify-center text-sm">
                   2
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                      <BatteryCharging className="w-5 h-5 text-cyan-400" />
+                    <h2 className="text-lg font-bold text-slate-950 flex items-center gap-2">
+                      <BatteryCharging className="w-5 h-5 text-cyan-600" />
                       EV Battery Diagnostic Telemetry
                     </h2>
-                    <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                    <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-cyan-100 text-cyan-800 border border-cyan-300">
                       EV-Only
                     </span>
                   </div>
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <p className="text-xs text-slate-600 mt-0.5">
                     Trained on NASA Ames Li-ion experimental cell aging degradation profiles
                   </p>
                 </div>
               </div>
 
               {/* Opt-out toggle */}
-              <label className="flex items-center gap-2 text-xs font-mono text-slate-300 cursor-pointer self-start sm:self-auto bg-slate-950/60 px-3 py-1.5 rounded-lg border border-slate-800">
+              <label className="flex items-center gap-2 text-xs font-mono text-slate-700 cursor-pointer self-start sm:self-auto bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-2xs">
                 <input
                   type="checkbox"
                   checked={includeBatteryDiagnostic}
                   onChange={(e) => setIncludeBatteryDiagnostic(e.target.checked)}
-                  className="rounded text-cyan-500 focus:ring-cyan-400"
+                  className="rounded text-black focus:ring-black"
                 />
                 <span>Enable SOH Diagnostic</span>
               </label>
@@ -627,10 +627,10 @@ export const AnalyzePage: React.FC = () => {
             {includeBatteryDiagnostic ? (
               <div className="space-y-6">
                 {/* Preset bar */}
-                <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2">
+                <div className="p-3.5 rounded-xl bg-white border border-slate-200 space-y-2 shadow-2xs">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                    <span className="text-xs text-slate-800 font-semibold flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-cyan-600" />
                       Quick Diagnostic Benchmark Presets
                     </span>
                     <span className="text-[11px] text-slate-500 font-mono">1-click test fill</span>
@@ -641,7 +641,7 @@ export const AnalyzePage: React.FC = () => {
                         key={idx}
                         type="button"
                         onClick={() => applyEvPreset(preset.data)}
-                        className="text-left px-3 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700/60 hover:border-cyan-500/50 text-xs text-slate-300 hover:text-white transition-all font-mono"
+                        className="text-left px-3.5 py-2.5 rounded-lg bg-slate-50 hover:bg-black text-slate-800 hover:text-white border border-slate-200 hover:border-black text-xs transition-all duration-200 font-mono hover:scale-[1.02] active:scale-[0.98] shadow-2xs cursor-pointer"
                       >
                         {preset.name}
                       </button>
@@ -653,7 +653,7 @@ export const AnalyzePage: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
                   {/* Cycles */}
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center justify-between">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 flex items-center justify-between">
                       <span>Cycle Count</span>
                       <span className="text-[10px] text-slate-500 font-mono">cycles</span>
                     </label>
@@ -663,14 +663,14 @@ export const AnalyzePage: React.FC = () => {
                       max="1000"
                       value={cycle}
                       onChange={(e) => setCycle(Number(e.target.value))}
-                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-white text-sm font-mono focus:border-cyan-500"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-3.5 py-2 text-slate-900 text-sm font-mono focus:border-black focus:ring-1 focus:ring-black outline-none"
                       required
                     />
                   </div>
 
                   {/* Ambient Temperature */}
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center justify-between">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 flex items-center justify-between">
                       <span>Ambient Temp</span>
                       <span className="text-[10px] text-slate-500 font-mono">°C</span>
                     </label>
@@ -679,14 +679,14 @@ export const AnalyzePage: React.FC = () => {
                       step="0.5"
                       value={ambientTemp}
                       onChange={(e) => setAmbientTemp(Number(e.target.value))}
-                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-white text-sm font-mono focus:border-cyan-500"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-3.5 py-2 text-slate-900 text-sm font-mono focus:border-black focus:ring-1 focus:ring-black outline-none"
                       required
                     />
                   </div>
 
                   {/* Peak Voltage */}
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center justify-between">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 flex items-center justify-between">
                       <span>Peak Initial Voltage</span>
                       <span className="text-[10px] text-slate-500 font-mono">V</span>
                     </label>
@@ -697,14 +697,14 @@ export const AnalyzePage: React.FC = () => {
                       max="4.5"
                       value={voltageMax}
                       onChange={(e) => setVoltageMax(Number(e.target.value))}
-                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-white text-sm font-mono focus:border-cyan-500"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-3.5 py-2 text-slate-900 text-sm font-mono focus:border-black focus:ring-1 focus:ring-black outline-none"
                       required
                     />
                   </div>
 
                   {/* Cutoff Voltage */}
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center justify-between">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 flex items-center justify-between">
                       <span>Cutoff Voltage</span>
                       <span className="text-[10px] text-slate-500 font-mono">V</span>
                     </label>
@@ -715,14 +715,14 @@ export const AnalyzePage: React.FC = () => {
                       max="3.2"
                       value={voltageMin}
                       onChange={(e) => setVoltageMin(Number(e.target.value))}
-                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-white text-sm font-mono focus:border-cyan-500"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-3.5 py-2 text-slate-900 text-sm font-mono focus:border-black focus:ring-1 focus:ring-black outline-none"
                       required
                     />
                   </div>
 
                   {/* Mean Voltage */}
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center justify-between">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 flex items-center justify-between">
                       <span>Mean Discharge Voltage</span>
                       <span className="text-[10px] text-slate-500 font-mono">V</span>
                     </label>
@@ -733,14 +733,14 @@ export const AnalyzePage: React.FC = () => {
                       max="4.0"
                       value={voltageMean}
                       onChange={(e) => setVoltageMean(Number(e.target.value))}
-                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-white text-sm font-mono focus:border-cyan-500"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-3.5 py-2 text-slate-900 text-sm font-mono focus:border-black focus:ring-1 focus:ring-black outline-none"
                       required
                     />
                   </div>
 
                   {/* Discharge Current */}
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center justify-between">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 flex items-center justify-between">
                       <span>Mean Discharge Current</span>
                       <span className="text-[10px] text-slate-500 font-mono">A</span>
                     </label>
@@ -751,14 +751,14 @@ export const AnalyzePage: React.FC = () => {
                       max="10.0"
                       value={currentMean}
                       onChange={(e) => setCurrentMean(Number(e.target.value))}
-                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-white text-sm font-mono focus:border-cyan-500"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-3.5 py-2 text-slate-900 text-sm font-mono focus:border-black focus:ring-1 focus:ring-black outline-none"
                       required
                     />
                   </div>
 
                   {/* Max Temperature */}
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center justify-between">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 flex items-center justify-between">
                       <span>Peak Operating Temp</span>
                       <span className="text-[10px] text-slate-500 font-mono">°C</span>
                     </label>
@@ -767,14 +767,14 @@ export const AnalyzePage: React.FC = () => {
                       step="0.5"
                       value={tempMax}
                       onChange={(e) => setTempMax(Number(e.target.value))}
-                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-white text-sm font-mono focus:border-cyan-500"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-3.5 py-2 text-slate-900 text-sm font-mono focus:border-black focus:ring-1 focus:ring-black outline-none"
                       required
                     />
                   </div>
 
                   {/* Discharge Duration */}
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center justify-between">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 flex items-center justify-between">
                       <span>Discharge Duration</span>
                       <span className="text-[10px] text-slate-500 font-mono">seconds</span>
                     </label>
@@ -784,7 +784,7 @@ export const AnalyzePage: React.FC = () => {
                       max="10000"
                       value={dischargeSec}
                       onChange={(e) => setDischargeSec(Number(e.target.value))}
-                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-white text-sm font-mono focus:border-cyan-500"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-3.5 py-2 text-slate-900 text-sm font-mono focus:border-black focus:ring-1 focus:ring-black outline-none"
                       required
                     />
                     <span className="text-[10px] text-slate-500 font-mono">
@@ -794,7 +794,7 @@ export const AnalyzePage: React.FC = () => {
 
                   {/* Internal Resistance */}
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center justify-between">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 flex items-center justify-between">
                       <span>Internal Resistance</span>
                       <span className="text-[10px] text-slate-500 font-mono">Ohms (Ω)</span>
                     </label>
@@ -805,22 +805,22 @@ export const AnalyzePage: React.FC = () => {
                       max="0.5"
                       value={internalResistance}
                       onChange={(e) => setInternalResistance(Number(e.target.value))}
-                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-white text-sm font-mono focus:border-cyan-500"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-3.5 py-2 text-slate-900 text-sm font-mono focus:border-black focus:ring-1 focus:ring-black outline-none"
                       required
                     />
                   </div>
                 </div>
 
-                <div className="p-3 rounded-lg bg-slate-950/80 border border-cyan-900/40 text-xs text-slate-400 flex items-start gap-2.5">
-                  <Info className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+                <div className="p-3 rounded-lg bg-cyan-50/70 border border-cyan-200 text-xs text-slate-700 flex items-start gap-2.5">
+                  <Info className="w-4 h-4 text-cyan-700 shrink-0 mt-0.5" />
                   <span>
                     AutoCX estimates battery SOH based on cycle kinetics and terminal resistance. If diagnostic sensor logs are unavailable, uncheck the box above to evaluate vehicle resale value independently.
                   </span>
                 </div>
               </div>
             ) : (
-              <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 text-xs text-slate-400 flex items-center gap-3">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <div className="p-4 rounded-xl bg-slate-100 border border-slate-200 text-xs text-slate-600 flex items-center gap-3">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                 <span>
                   Battery SOH diagnostic is toggled off. You will receive an EV market resale valuation based on vehicle age, mileage, and brand specifications alone.
                 </span>
@@ -828,10 +828,10 @@ export const AnalyzePage: React.FC = () => {
             )}
           </div>
         ) : fuel === 'Hybrid' ? (
-          <div className="p-5 rounded-xl bg-slate-900/60 border border-slate-800 text-slate-400 text-xs flex items-start gap-3">
-            <HelpCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+          <div className="p-5 rounded-xl bg-amber-50/70 border border-amber-200 text-slate-700 text-xs flex items-start gap-3">
+            <HelpCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
             <div>
-              <strong className="text-white block font-semibold mb-1">
+              <strong className="text-slate-900 block font-semibold mb-1">
                 Hybrid Powertrain Note:
               </strong>
               Hybrid vehicles utilize dual combustion-electric powertrains with smaller buffer battery packs. The dedicated NASA SOH cell diagnostic is calibrated specifically for pure Electric (BEV) traction batteries. Resale valuation will run normally for this hybrid.
@@ -840,7 +840,7 @@ export const AnalyzePage: React.FC = () => {
         ) : null}
 
         {/* Action Button */}
-        <div className="flex flex-col sm:flex-row items-center justify-end gap-4 pt-4 border-t border-slate-800">
+        <div className="flex flex-col sm:flex-row items-center justify-end gap-4 pt-4 border-t border-slate-200">
           <button
             type="button"
             onClick={() => {
@@ -855,26 +855,26 @@ export const AnalyzePage: React.FC = () => {
               setSeats(5);
               setOriginalPrice('');
             }}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-900 text-xs font-mono transition-colors"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white hover:bg-slate-100 text-slate-700 hover:text-black border border-slate-300 hover:border-black text-xs font-mono transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shadow-2xs group cursor-pointer"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
+            <RotateCcw className="w-3.5 h-3.5 group-hover:-rotate-45 transition-transform duration-300" />
             <span>Reset Defaults</span>
           </button>
 
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-sm shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-black hover:bg-neutral-800 text-white font-bold text-sm shadow-lg shadow-black/20 hover:shadow-2xl hover:scale-[1.03] active:scale-[0.98] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group cursor-pointer"
           >
             {isLoading ? (
               <>
-                <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 <span>Running Inference Pipelines...</span>
               </>
             ) : (
               <>
                 <span>Compute Valuation & SOH</span>
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
               </>
             )}
           </button>

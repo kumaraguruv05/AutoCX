@@ -29,40 +29,40 @@ export const Navbar: React.FC = () => {
   ];
 
   return (
-    <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur-md sticky top-0 z-50">
+    <header className="border-b border-slate-200 bg-white/90 backdrop-blur-md sticky top-0 z-50 shadow-xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Brand Wordmark */}
         <Link to="/" className="flex items-center gap-3 group">
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20 group-hover:shadow-cyan-500/40 transition-all">
-            <Gauge className="w-6 h-6 text-slate-950" />
+          <div className="w-10 h-10 rounded-xl bg-black flex items-center justify-center shadow-md shadow-black/15 group-hover:scale-105 transition-transform duration-300">
+            <Gauge className="w-5 h-5 text-white" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-bold text-xl tracking-tight text-white group-hover:text-cyan-400 transition-colors">
+              <span className="font-bold text-xl tracking-tight text-slate-950 transition-colors">
                 AutoCX
               </span>
-              <span className="text-xs px-2 py-0.5 rounded font-mono font-medium bg-slate-800 text-cyan-300 border border-slate-700">
+              <span className="text-xs px-2 py-0.5 rounded font-mono font-medium bg-slate-100 text-slate-700 border border-slate-200">
                 Auto ChronAx
               </span>
             </div>
-            <p className="text-[10px] text-slate-400 hidden sm:block tracking-wide">
+            <p className="text-[10px] text-slate-500 hidden sm:block tracking-wide">
               Time Changes Cars. AutoCX Measures Value.
             </p>
           </div>
         </Link>
 
         {/* Navigation items */}
-        <nav className="flex items-center gap-1 sm:gap-2">
+        <nav className="flex items-center gap-1.5 sm:gap-2">
           {navLinks.map(({ to, label, icon: Icon }) => {
             const isActive = location.pathname === to;
             return (
               <Link
                 key={to}
                 to={to}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all duration-300 hover:scale-[1.03] active:scale-[0.97] ${
                   isActive
-                    ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-900 border border-transparent'
+                    ? 'bg-black text-white shadow-sm'
+                    : 'text-slate-600 hover:text-black hover:bg-slate-100 border border-transparent'
                 }`}
               >
                 <Icon className="w-4 h-4" />
@@ -73,24 +73,24 @@ export const Navbar: React.FC = () => {
         </nav>
 
         {/* Backend health status badge */}
-        <div className="hidden lg:flex items-center gap-2 text-xs font-mono text-slate-400 bg-slate-900/90 px-3 py-1.5 rounded-full border border-slate-800">
+        <div className="hidden lg:flex items-center gap-2 text-xs font-mono text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200">
           <Activity
             className={`w-3.5 h-3.5 ${
               apiHealthy === true
-                ? 'text-emerald-400 animate-pulse'
+                ? 'text-emerald-500 animate-pulse'
                 : apiHealthy === false
-                ? 'text-rose-400'
-                : 'text-amber-400 animate-spin'
+                ? 'text-rose-500'
+                : 'text-amber-500 animate-spin'
             }`}
           />
           <span>API:</span>
           <span
             className={
               apiHealthy === true
-                ? 'text-emerald-400 font-semibold'
+                ? 'text-emerald-600 font-semibold'
                 : apiHealthy === false
-                ? 'text-rose-400 font-semibold'
-                : 'text-amber-400'
+                ? 'text-rose-600 font-semibold'
+                : 'text-amber-600'
             }
           >
             {apiHealthy === true ? 'ONLINE' : apiHealthy === false ? 'OFFLINE' : 'CHECKING'}
