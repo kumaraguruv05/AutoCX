@@ -1,0 +1,58 @@
+{
+  "model_name": "AutoCX EV Battery State of Health (SOH) Estimator",
+  "algorithm": "XGBoost",
+  "version": "1.0.0",
+  "training_dataset": "NASA Ames PCoE Li-ion Battery Aging Dataset (34 commercial 18650 cells)",
+  "training_cells": 28,
+  "test_cells": 6,
+  "test_cell_ids": [
+    "B0029",
+    "B0038",
+    "B0042",
+    "B0047",
+    "B0049",
+    "B0050"
+  ],
+  "training_samples": 2189,
+  "test_samples": 245,
+  "validation_strategy": "Zero-Leakage Cell-Holdout Validation (test set comprises entirely unseen battery cells)",
+  "metrics": {
+    "mae": 2.69,
+    "rmse": 3.73,
+    "r2": 0.9227
+  },
+  "all_candidate_metrics": {
+    "DummyRegressor": {
+      "mae": 11.73,
+      "rmse": 13.43,
+      "r2": -0.0002
+    },
+    "LinearRegression": {
+      "mae": 3.8,
+      "rmse": 5.14,
+      "r2": 0.8533
+    },
+    "RandomForest": {
+      "mae": 3.5,
+      "rmse": 4.86,
+      "r2": 0.8691
+    },
+    "XGBoost": {
+      "mae": 2.69,
+      "rmse": 3.73,
+      "r2": 0.9227
+    },
+    "CatBoost": {
+      "mae": 3.6,
+      "rmse": 5.36,
+      "r2": 0.8404
+    }
+  },
+  "target_variable": "soh_percent (% of 2.0 Ah rated capacity)",
+  "limitations": [
+    "Trained on laboratory cycle life data from commercial 18650 Li-ion cells.",
+    "Predictions reflect cell-level electrochemical health and do not replace OEM multi-pack BMS active telemetry.",
+    "Diagnostic accuracy depends on accurate voltage, temperature, and discharge cycle measurements.",
+    "Degraded condition category reflects standard 70% EOL criteria from NASA/IEEE standards."
+  ]
+}

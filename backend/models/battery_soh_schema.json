@@ -1,0 +1,124 @@
+{
+  "features": [
+    "cycle",
+    "ambient_temperature_c",
+    "voltage_max_v",
+    "voltage_min_v",
+    "voltage_mean_v",
+    "voltage_std_v",
+    "current_mean_a",
+    "temp_max_c",
+    "temp_mean_c",
+    "discharge_duration_sec",
+    "internal_resistance_ohm"
+  ],
+  "target": "soh_percent",
+  "units": {
+    "cycle": "cycles",
+    "ambient_temperature_c": "\u00b0C",
+    "voltage_max_v": "V",
+    "voltage_min_v": "V",
+    "voltage_mean_v": "V",
+    "voltage_std_v": "V",
+    "current_mean_a": "A",
+    "temp_max_c": "\u00b0C",
+    "temp_mean_c": "\u00b0C",
+    "discharge_duration_sec": "seconds",
+    "internal_resistance_ohm": "Ohms",
+    "soh_percent": "%"
+  },
+  "feature_ranges": {
+    "cycle": {
+      "min": 1.0,
+      "max": 197.0,
+      "median": 48.0,
+      "mean": 62.931
+    },
+    "ambient_temperature_c": {
+      "min": 4.0,
+      "max": 44.0,
+      "median": 24.0,
+      "mean": 20.1463
+    },
+    "voltage_max_v": {
+      "min": 3.8183,
+      "max": 4.4684,
+      "median": 4.1869,
+      "mean": 4.1871
+    },
+    "voltage_min_v": {
+      "min": 0.1927,
+      "max": 2.7,
+      "median": 2.3975,
+      "mean": 2.3298
+    },
+    "voltage_mean_v": {
+      "min": 2.8832,
+      "max": 3.6846,
+      "median": 3.4148,
+      "mean": 3.417
+    },
+    "voltage_std_v": {
+      "min": 0.1512,
+      "max": 0.5031,
+      "median": 0.2663,
+      "mean": 0.2896
+    },
+    "current_mean_a": {
+      "min": 0.6276,
+      "max": 3.9765,
+      "median": 1.8095,
+      "mean": 1.7964
+    },
+    "temp_max_c": {
+      "min": 10.1493,
+      "max": 69.8697,
+      "median": 38.5024,
+      "mean": 36.5852
+    },
+    "temp_mean_c": {
+      "min": 7.6773,
+      "max": 58.9548,
+      "median": 31.9501,
+      "mean": 28.8321
+    },
+    "discharge_duration_sec": {
+      "min": 982.938,
+      "max": 6574.671,
+      "median": 3058.578,
+      "mean": 3409.9702
+    },
+    "internal_resistance_ohm": {
+      "min": 0.0876,
+      "max": 0.3051,
+      "median": 0.1605,
+      "mean": 0.1645
+    }
+  },
+  "condition_categories": [
+    {
+      "label": "Excellent",
+      "min_soh": 90.0,
+      "max_soh": 100.0,
+      "description": "Near-original capacity. Minimal degradation."
+    },
+    {
+      "label": "Good",
+      "min_soh": 80.0,
+      "max_soh": 89.99,
+      "description": "Normal expected degradation for fleet operation."
+    },
+    {
+      "label": "Fair",
+      "min_soh": 70.0,
+      "max_soh": 79.99,
+      "description": "Noticeable range reduction. Secondary inspection advised."
+    },
+    {
+      "label": "Degraded",
+      "min_soh": 0.0,
+      "max_soh": 69.99,
+      "description": "End-of-life threshold reached. Service or module replacement recommended."
+    }
+  ]
+}
