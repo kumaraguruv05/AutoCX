@@ -178,17 +178,19 @@ export const ResultsPage: React.FC = () => {
               <>
                 <span className="text-xs text-slate-300">•</span>
                 <span className={`text-xs font-mono px-2.5 py-0.5 rounded-md font-semibold border flex items-center gap-1 ${
-                  carResult.battery_valuation_impact.adjustment_inr >= 0
+                  carResult.battery_valuation_impact.is_eol_override
+                    ? 'bg-rose-50 text-rose-900 border-rose-300'
+                    : carResult.battery_valuation_impact.adjustment_inr >= 0
                     ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                    : carResult.battery_valuation_impact.adjustment_percent <= -20
-                    ? 'bg-rose-50 text-rose-800 border-rose-300'
                     : 'bg-amber-50 text-amber-800 border-amber-300'
                 }`}>
                   <Zap className="w-3 h-3" />
                   <span>
                     {carResult.battery_valuation_impact.battery_soh.toFixed(1)}% SOH (
-                    {carResult.battery_valuation_impact.adjustment_inr >= 0 ? '+' : ''}
-                    {formatINR(carResult.battery_valuation_impact.adjustment_inr)})
+                    {carResult.battery_valuation_impact.is_eol_override
+                      ? `EOL Override: ${formatINR(carResult.battery_valuation_impact.adjustment_inr)}`
+                      : `${carResult.battery_valuation_impact.adjustment_inr >= 0 ? '+' : ''}${formatINR(carResult.battery_valuation_impact.adjustment_inr)}`}
+                    )
                   </span>
                 </span>
               </>
@@ -330,29 +332,78 @@ export const ResultsPage: React.FC = () => {
 
           {/* Battery Health Valuation Impact Callout */}
           {carResult.battery_valuation_impact && (
-            <div className={`p-4 rounded-xl border space-y-2.5 ${
-              carResult.battery_valuation_impact.adjustment_inr >= 0
-                ? 'bg-emerald-50/70 border-emerald-200'
-                : carResult.battery_valuation_impact.adjustment_percent <= -20
+            <div className={`p-4 rounded-xl border space-y-3 ${
+              carResult.battery_valuation_impact.is_eol_override
                 ? 'bg-rose-50/70 border-rose-200'
+                : carResult.battery_valuation_impact.adjustment_inr >= 0
+                ? 'bg-emerald-50/70 border-emerald-200'
                 : 'bg-amber-50/70 border-amber-200'
             }`}>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <span className="text-xs font-bold font-mono text-slate-900 flex items-center gap-1.5">
                   <BatteryCharging className="w-4 h-4 text-slate-900" />
                   <span>Battery Health Resale Impact</span>
                 </span>
-                <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded-full border ${
-                  carResult.battery_valuation_impact.adjustment_inr >= 0
-                    ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
-                    : carResult.battery_valuation_impact.adjustment_percent <= -20
-                    ? 'bg-rose-100 text-rose-900 border-rose-300'
-                    : 'bg-amber-100 text-amber-900 border-amber-300'
-                }`}>
-                  {carResult.battery_valuation_impact.adjustment_percent >= 0 ? '+' : ''}
-                  {carResult.battery_valuation_impact.adjustment_percent}% ({formatINR(carResult.battery_valuation_impact.adjustment_inr)})
-                </span>
+                <div className="flex items-center gap-2">
+                  {carResult.battery_valuation_impact.rule_precedence && (
+                    <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-semibold ${
+                      carResult.battery_valuation_impact.is_eol_override
+                        ? 'bg-slate-900 text-white'
+                        : 'bg-slate-100 text-slate-800 border border-slate-300'
+                    }`}>
+                      {carResult.battery_valuation_impact.rule_precedence}
+                    </span>
+                  )}
+                  <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded-full border ${
+                    carResult.battery_valuation_impact.adjustment_inr >= 0
+                      ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                      : 'bg-rose-100 text-rose-900 border-rose-300'
+                  }`}>
+                    {carResult.battery_valuation_impact.adjustment_percent >= 0 ? '+' : ''}
+                    {carResult.battery_valuation_impact.adjustment_percent}% ({formatINR(carResult.battery_valuation_impact.adjustment_inr)})
+                  </span>
+                </div>
               </div>
+
+              {/* Component-level breakdown when EOL Override is triggered */}
+              {carResult.battery_valuation_impact.is_eol_override && carResult.battery_valuation_impact.baseline_market_value && (
+                <div className="p-3 rounded-lg bg-white/95 border border-rose-200 shadow-2xs space-y-2 font-mono">
+                  <div className="font-bold text-slate-900 flex items-center justify-between text-[11px] pb-1 border-b border-slate-100">
+                    <span className="flex items-center gap-1 text-rose-900">
+                      <Zap className="w-3 h-3 text-rose-600" />
+                      <span>Component-Level Override Breakdown (Double-Counting Protected)</span>
+                    </span>
+                    <span className="text-emerald-700 font-semibold text-[10px]">De-stacked Formula</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                    <div className="p-2 rounded bg-slate-50 border border-slate-200">
+                      <span className="text-[10px] text-slate-500 block">Baseline Value</span>
+                      <span className="font-bold text-slate-900">
+                        {formatINR(carResult.battery_valuation_impact.baseline_market_value)}
+                      </span>
+                    </div>
+                    <div className="p-2 rounded bg-slate-50 border border-slate-200">
+                      <span className="text-[10px] text-slate-500 block">Net Battery Deduction</span>
+                      <span className="font-bold text-rose-700">
+                        -{formatINR(carResult.battery_valuation_impact.replacement_pack_cost_estimate || 0)}
+                      </span>
+                    </div>
+                    <div className="p-2 rounded bg-slate-50 border border-slate-200">
+                      <span className="text-[10px] text-slate-500 block">Chassis Floor</span>
+                      <span className="font-bold text-slate-900">
+                        {formatINR(carResult.battery_valuation_impact.chassis_floor_inr || 0)}
+                      </span>
+                    </div>
+                    <div className="p-2 rounded bg-emerald-50 border border-emerald-200">
+                      <span className="text-[10px] text-emerald-800 block">Net Valuation</span>
+                      <span className="font-bold text-emerald-900">
+                        {formatINR(carResult.estimated_resale_price)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <p className="text-xs text-slate-700 font-mono leading-relaxed">
                 {carResult.battery_valuation_impact.explanation}
               </p>
@@ -507,6 +558,12 @@ export const ResultsPage: React.FC = () => {
                       </span>
                     </div>
                     <div className="text-[11px] text-slate-600 flex items-center justify-between border-t border-slate-100 pt-1.5">
+                      <span>Pricing Rule Precedence:</span>
+                      <span className={`font-semibold ${carResult.battery_valuation_impact.is_eol_override ? 'text-rose-900 bg-rose-50 px-2 py-0.5 rounded' : 'text-slate-900'}`}>
+                        {carResult.battery_valuation_impact.rule_precedence || 'Market Baseline'}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-slate-600 flex items-center justify-between">
                       <span>Replacement Risk Grade:</span>
                       <span className="font-semibold text-slate-900">{carResult.battery_valuation_impact.pack_replacement_risk}</span>
                     </div>

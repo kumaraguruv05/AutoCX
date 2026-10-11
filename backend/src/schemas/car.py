@@ -30,6 +30,11 @@ class BatteryValuationImpact(BaseModel):
     adjustment_percent: float = Field(..., description="Percentage shift applied to base vehicle price")
     pack_replacement_risk: str = Field(..., description="Risk assessment of traction pack replacement")
     explanation: str = Field(..., description="Automotive domain explanation of the valuation impact")
+    rule_precedence: str = Field(default="Market Baseline with Empirical SOH Adjustment", description="Valuation rule that took precedence")
+    is_eol_override: bool = Field(default=False, description="Whether End-of-Life SOH replacement override superseded cumulative percentage stacking")
+    baseline_market_value: Optional[float] = Field(default=None, description="Pre-adjustment baseline vehicle valuation in INR")
+    replacement_pack_cost_estimate: Optional[float] = Field(default=None, description="Estimated net battery pack replacement cost in INR")
+    chassis_floor_inr: Optional[float] = Field(default=None, description="Enforced rolling chassis and core powertrain floor in INR")
 
 class CarPredictionResponse(BaseModel):
     estimated_resale_price: float

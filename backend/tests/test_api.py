@@ -250,3 +250,42 @@ def test_ice_vehicle_unaffected_by_battery_soh(client):
     assert data["battery_valuation_impact"] is None
     assert data["vehicle_summary"]["battery_soh"] is None
 
+def test_ev_eol_replacement_override_destacking(client):
+    # 2020 Tata Nexon EV with 69% SOH (User's critical double-counting bug test case)
+    payload = {
+        "brand": "Tata",
+        "model": "Nexon EV",
+        "year": 2020,
+        "km_driven": 50000,
+        "fuel": "Electric",
+        "transmission": "Automatic",
+        "owner": "First Owner",
+        "seats": 5,
+        "original_price": 1500000.0,
+        "battery_soh": 69.0
+    }
+    res = client.post("/api/predict/car-value", json=payload)
+    assert res.status_code == 200
+    data = res.json()
+    
+    impact = data["battery_valuation_impact"]
+    assert impact is not None
+    assert impact["battery_soh"] == 69.0
+    assert impact["is_eol_override"] is True
+    assert impact["rule_precedence"] == "End-of-Life SOH Replacement Override"
+    assert impact["condition_category"] == "Degraded (End of Life)"
+    assert impact["baseline_market_value"] is not None
+    assert impact["replacement_pack_cost_estimate"] is not None
+    assert impact["chassis_floor_inr"] is not None
+    
+    # Must NOT be crushed into scrap brackets by compound stacking (Rs 15L car should not drop to scrap/Rs 25k)
+    # Protected by chassis floor (at least 22% of Rs 15L = Rs 3.3L)
+    assert impact["chassis_floor_inr"] >= 300000.0
+    assert data["estimated_resale_price"] >= impact["chassis_floor_inr"]
+    assert data["estimated_resale_price"] >= 330000.0
+    
+    # Check that guardrail precedence rule was explicitly logged
+    guardrails = data["vehicle_summary"]["guardrails_applied"]
+    assert any("End-of-Life SOH Replacement Override" in g for g in guardrails)
+    assert any("generic pack anxiety waived" in g for g in guardrails)
+

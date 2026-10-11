@@ -29,6 +29,11 @@ export interface BatteryValuationImpact {
   adjustment_percent: number;
   pack_replacement_risk: string;
   explanation: string;
+  rule_precedence?: string;
+  is_eol_override?: boolean;
+  baseline_market_value?: number;
+  replacement_pack_cost_estimate?: number;
+  chassis_floor_inr?: number;
 }
 
 export interface CarPredictionResponse {

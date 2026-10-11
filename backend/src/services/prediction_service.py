@@ -202,19 +202,34 @@ class PredictionService:
             )
 
         # 2. EV-Specific Secondary Market Adjustment Factor
-        # Compensates for early-gen rapid battery tech evolution, out-of-warranty replacement anxiety
-        if request.fuel.lower() == "electric":
-            ev_tech_factor = 0.92 if vehicle_age <= 2 else (0.86 if vehicle_age <= 4 else 0.80)
-            ev_battery_anxiety_factor = 1.0
-            if request.km_driven > 60000:
-                excess_ev_km = request.km_driven - 60000
-                ev_battery_anxiety_factor = max(0.75, 1.0 - (excess_ev_km / 140000.0) * 0.25)
+        # Compensates for early-gen rapid battery tech evolution.
+        is_electric = (request.fuel.strip().lower() == "electric")
+        has_soh = is_electric and (request.battery_soh is not None)
+        soh_value = float(np.clip(request.battery_soh, 10.0, 100.0)) if has_soh else None
+        is_eol_override = bool(has_soh and (soh_value is not None and soh_value < 70.0))
+
+        if is_electric:
+            ev_tech_factor = 0.94 if vehicle_age <= 2 else (0.88 if vehicle_age <= 4 else 0.82)
             
-            ev_market_factor = ev_tech_factor * ev_battery_anxiety_factor
+            # MUTUAL EXCLUSION: If empirical SOH is verified, eliminate generic battery anxiety discount!
+            if has_soh:
+                ev_battery_anxiety_factor = 1.0
+                ev_market_factor = ev_tech_factor
+                guardrails_applied.append(
+                    f"EV Secondary Market Adjustment: -{(1.0 - ev_market_factor)*100:.1f}% for platform tech evolution "
+                    f"(generic pack anxiety waived due to verified SOH telemetry)."
+                )
+            else:
+                # Odometer-driven secondary anxiety when no SOH report exists
+                ev_battery_anxiety_factor = 1.0
+                if request.km_driven > 60000:
+                    excess_ev_km = request.km_driven - 60000
+                    ev_battery_anxiety_factor = max(0.75, 1.0 - (excess_ev_km / 140000.0) * 0.25)
+                ev_market_factor = ev_tech_factor * ev_battery_anxiety_factor
+                guardrails_applied.append(
+                    f"EV Secondary Market Adjustment: -{(1.0 - ev_market_factor)*100:.1f}% for tech obsolescence and unverified pack anxiety."
+                )
             predicted_price *= ev_market_factor
-            guardrails_applied.append(
-                f"EV Secondary Market Adjustment: -{(1.0 - ev_market_factor)*100:.1f}% for tech obsolescence and battery secondary anxiety."
-            )
 
         # -------------------------------------------------------------
         # DOMAIN GUARDRAILS & POST-PROCESSING CLAMPING
@@ -266,13 +281,14 @@ class PredictionService:
                 base_ret -= 0.05
                 
             # EV-specific retention adjustment
-            if request.fuel.lower() == "electric":
-                base_ret *= 0.85 # Secondary EV market depreciation discount
-                if request.battery_soh is not None:
-                    if request.battery_soh < 70.0:
-                        base_ret *= 0.72 # Steep cap reduction for battery EOL
-                    elif request.battery_soh >= 90.0:
+            if is_electric:
+                base_ret *= 0.86 # Secondary EV market depreciation discount
+                if has_soh:
+                    if soh_value is not None and soh_value >= 90.0:
                         base_ret *= 1.05 # Headroom for pristine pack
+                    # Note: When SOH < 70%, DO NOT reduce ceiling by 0.72 here.
+                    # EOL Replacement Override cleanly subtracts replacement deduction from the baseline chassis value,
+                    # preventing compound double-penalization.
                 elif request.km_driven > 70000:
                     base_ret *= max(0.78, 1.0 - (request.km_driven - 70000) / 150000.0 * 0.25)
                 
@@ -317,72 +333,129 @@ class PredictionService:
         # HIGH-VOLTAGE TRACTION BATTERY CONDITION MODULATION (EV ONLY)
         # -------------------------------------------------------------
         battery_valuation_impact = None
-        if request.fuel.lower() == "electric" and request.battery_soh is not None:
-            soh = float(np.clip(request.battery_soh, 10.0, 100.0))
+        if is_electric and has_soh and soh_value is not None:
+            baseline_val = float(round(predicted_price, 2))
             
-            if soh >= 90.0:
-                condition_category = "Excellent"
-                pack_risk = "Minimal Risk (Battery in Peak Operational Health)"
-                # Premium: +3.0% at 90% SOH up to +7.0% at 100% SOH
-                adj_pct = round(min(8.0, 3.0 + (soh - 90.0) * 0.4), 2)
-                adj_inr = round(predicted_price * (adj_pct / 100.0), 2)
-                explanation = (
-                    f"Traction battery is in exceptional condition ({soh:.1f}% SOH). "
-                    f"Commands a +{adj_pct:.1f}% (+INR {abs(adj_inr):,.0f}) valuation premium due to maximum range retention, "
-                    f"healthy cell electrochemical balance, and zero imminent pack replacement risk."
-                )
-            elif soh >= 80.0:
-                condition_category = "Good"
-                pack_risk = "Low Risk (Normal Operational Degradation)"
-                # Baseline market expectation (85% is neutral, 80% is -2.5%, 89% is +2.0%)
-                adj_pct = round((soh - 85.0) * 0.5, 2)
-                adj_inr = round(predicted_price * (adj_pct / 100.0), 2)
-                sign_str = f"+{adj_pct:.1f}% (+INR {adj_inr:,.0f})" if adj_pct >= 0 else f"{adj_pct:.1f}% (-INR {abs(adj_inr):,.0f})"
-                explanation = (
-                    f"Traction battery shows normal operational wear ({soh:.1f}% SOH). "
-                    f"Resale value adjusted by {sign_str} aligned with expected fleet capacity retention."
-                )
-            elif soh >= 70.0:
-                condition_category = "Fair"
-                pack_risk = "Moderate to High Risk (Noticeable Capacity Loss)"
-                # Noticeable degradation: -7.5% at 79.9% down to -17.5% at 70%
-                adj_pct = round(-7.5 - ((80.0 - soh) / 10.0) * 10.0, 2)
-                adj_inr = round(predicted_price * (adj_pct / 100.0), 2)
-                explanation = (
-                    f"Traction battery has experienced noticeable capacity degradation ({soh:.1f}% SOH). "
-                    f"Incurs a {adj_pct:.1f}% (-INR {abs(adj_inr):,.0f}) penalty due to diminished driving range (~25% loss) "
-                    f"and approaching factory warranty expiration threshold."
-                )
-            else: # soh < 70.0
+            # Floor Safeguards: calculate vehicle rolling chassis and powertrain floor
+            chassis_floor = round(max(140000.0, (effective_original_price * 0.22) if effective_original_price else 220000.0), 2)
+            
+            if is_eol_override:
+                # -------------------------------------------------------------
+                # RULE PRECEDENCE: End-of-Life SOH Replacement Override
+                # Supersedes cumulative percentage penalty stacking. Cleanly
+                # values vehicle as: Baseline Chassis Value - Net Replacement Cost
+                # -------------------------------------------------------------
                 condition_category = "Degraded (End of Life)"
                 pack_risk = "Critical Risk (Battery Pack Replacement Required)"
-                # Critical EOL: -22% at 69.9% down to -38% at 50%
-                adj_pct = round(max(-38.0, -22.0 - ((70.0 - soh) / 20.0) * 16.0), 2)
-                adj_inr = round(predicted_price * (adj_pct / 100.0), 2)
+                rule_precedence = "End-of-Life SOH Replacement Override"
+                
+                # Net pack replacement cost in Indian pre-owned market:
+                # ~24% of vehicle launch benchmark, offset by 20% recyclable core credit
+                replacement_gross = min(420000.0, max(180000.0, (effective_original_price * 0.24) if effective_original_price else 260000.0))
+                recycling_credit = round(replacement_gross * 0.20, 2)
+                net_replacement_cost = round(replacement_gross - recycling_credit, 2)
+                
+                # Moderate scale for deep sub-70 degradation
+                degradation_severity = min(1.20, 1.0 + (70.0 - soh_value) / 60.0)
+                net_deduction = round(net_replacement_cost * degradation_severity, 2)
+                
+                # Final market value: Baseline minus replacement cost, protected by rolling chassis floor
+                final_eol_price = max(chassis_floor, baseline_val - net_deduction)
+                adj_inr = round(final_eol_price - baseline_val, 2)
+                adj_pct = round((adj_inr / baseline_val) * 100.0, 2) if baseline_val > 0 else 0.0
+                predicted_price = final_eol_price
+                
                 explanation = (
-                    f"Traction battery has crossed the critical 70% automotive End-of-Life (EOL) threshold ({soh:.1f}% SOH). "
-                    f"Cell impedance and thermal instability necessitate imminent pack replacement (estimated INR 4.5L - INR 6.5L in India). "
-                    f"Resale value discounted by {adj_pct:.1f}% (-INR {abs(adj_inr):,.0f})."
+                    f"End-of-Life SOH Replacement Override (Takes Precedence): Battery State of Health ({soh_value:.1f}%) "
+                    f"crossed below the 70.0% critical automotive threshold. Overrode cumulative percentage penalty stacking. "
+                    f"Valued cleanly as Baseline Vehicle Value (INR {baseline_val:,.0f}) minus Net Battery Pack Replacement Cost "
+                    f"(INR {net_deduction:,.0f}), protected by Rolling Chassis Floor safeguard (INR {chassis_floor:,.0f})."
+                )
+                guardrails_applied.append(
+                    f"End-of-Life SOH Replacement Override (Precedence Rule): Subtracted INR {net_deduction:,.0f} net pack replacement cost "
+                    f"from INR {baseline_val:,.0f} baseline value. Protected by INR {chassis_floor:,.0f} rolling chassis floor."
+                )
+                
+                battery_valuation_impact = BatteryValuationImpact(
+                    battery_soh=soh_value,
+                    condition_category=condition_category,
+                    adjustment_inr=adj_inr,
+                    adjustment_percent=adj_pct,
+                    pack_replacement_risk=pack_risk,
+                    explanation=explanation,
+                    rule_precedence=rule_precedence,
+                    is_eol_override=True,
+                    baseline_market_value=baseline_val,
+                    replacement_pack_cost_estimate=net_deduction,
+                    chassis_floor_inr=chassis_floor
+                )
+            else:
+                # -------------------------------------------------------------
+                # RULE PRECEDENCE: Market Baseline with Empirical SOH Adjustment
+                # Normal operational battery condition modulation
+                # -------------------------------------------------------------
+                rule_precedence = "Market Baseline with Empirical SOH Adjustment"
+                
+                if soh_value >= 90.0:
+                    condition_category = "Excellent"
+                    pack_risk = "Minimal Risk (Battery in Peak Operational Health)"
+                    adj_pct = round(min(8.0, 3.0 + (soh_value - 90.0) * 0.4), 2)
+                    adj_inr = round(baseline_val * (adj_pct / 100.0), 2)
+                    explanation = (
+                        f"Traction battery is in exceptional condition ({soh_value:.1f}% SOH). "
+                        f"Commands a +{adj_pct:.1f}% (+INR {abs(adj_inr):,.0f}) valuation premium due to maximum range retention, "
+                        f"healthy cell electrochemical balance, and zero imminent pack replacement risk."
+                    )
+                elif soh_value >= 80.0:
+                    condition_category = "Good"
+                    pack_risk = "Low Risk (Normal Operational Degradation)"
+                    adj_pct = round((soh_value - 85.0) * 0.5, 2)
+                    adj_inr = round(baseline_val * (adj_pct / 100.0), 2)
+                    sign_str = f"+{adj_pct:.1f}% (+INR {adj_inr:,.0f})" if adj_pct >= 0 else f"{adj_pct:.1f}% (-INR {abs(adj_inr):,.0f})"
+                    explanation = (
+                        f"Traction battery shows normal operational wear ({soh_value:.1f}% SOH). "
+                        f"Resale value adjusted by {sign_str} aligned with expected fleet capacity retention."
+                    )
+                else: # 70.0 <= soh_value < 80.0
+                    condition_category = "Fair"
+                    pack_risk = "Moderate Risk (Noticeable Capacity Loss)"
+                    adj_pct = round(-5.0 - ((80.0 - soh_value) / 10.0) * 8.0, 2)
+                    adj_inr = round(baseline_val * (adj_pct / 100.0), 2)
+                    explanation = (
+                        f"Traction battery has experienced noticeable capacity degradation ({soh_value:.1f}% SOH). "
+                        f"Incurs a {adj_pct:.1f}% (-INR {abs(adj_inr):,.0f}) penalty due to diminished driving range (~20-25% loss) "
+                        f"and approaching factory warranty expiration."
+                    )
+                
+                predicted_price = max(chassis_floor, baseline_val + adj_inr)
+                guardrails_applied.append(
+                    f"Market Baseline with SOH Adjustment: {adj_pct:+.1f}% ({adj_inr:+,.0f} INR) based on {soh_value:.1f}% SOH ({condition_category})."
+                )
+                
+                battery_valuation_impact = BatteryValuationImpact(
+                    battery_soh=soh_value,
+                    condition_category=condition_category,
+                    adjustment_inr=adj_inr,
+                    adjustment_percent=adj_pct,
+                    pack_replacement_risk=pack_risk,
+                    explanation=explanation,
+                    rule_precedence=rule_precedence,
+                    is_eol_override=False,
+                    baseline_market_value=baseline_val,
+                    replacement_pack_cost_estimate=None,
+                    chassis_floor_inr=chassis_floor
                 )
 
-            predicted_price = max(40000.0, predicted_price + adj_inr)
-            
-            battery_valuation_impact = BatteryValuationImpact(
-                battery_soh=soh,
-                condition_category=condition_category,
-                adjustment_inr=adj_inr,
-                adjustment_percent=adj_pct,
-                pack_replacement_risk=pack_risk,
-                explanation=explanation
-            )
-            guardrails_applied.append(
-                f"Battery SOH Price Adjustment: {adj_pct:+.1f}% ({adj_inr:+,.0f} INR) based on {soh:.1f}% SOH ({condition_category})."
-            )
-
-        # Guardrail D: Running Scrap/Utility Minimum Floor
-        if predicted_price < 25000.0:
-            predicted_price = 25000.0
-            guardrails_applied.append("Utility Floor: Set to minimum running registered vehicle value (Rs 25,000).")
+        # Guardrail D: Floor Safeguards (EV Rolling Chassis Floor vs ICE Scrap Floor)
+        if is_electric:
+            ev_absolute_floor = round(max(140000.0, (effective_original_price * 0.20) if effective_original_price else 200000.0), 2)
+            if predicted_price < ev_absolute_floor:
+                predicted_price = ev_absolute_floor
+                guardrails_applied.append(f"EV Floor Safeguard: Maintained minimum registered EV rolling chassis floor (Rs {ev_absolute_floor:,.0f}).")
+        else:
+            if predicted_price < 25000.0:
+                predicted_price = 25000.0
+                guardrails_applied.append("Utility Floor: Set to minimum running registered vehicle value (Rs 25,000).")
             
         predicted_price = float(round(predicted_price, 2))
         
