@@ -1,5 +1,5 @@
 import React from 'react';
-import { Award, ShieldCheck, Cpu, Wrench } from 'lucide-react';
+import { Cpu } from 'lucide-react';
 
 interface ChassisBuildPlateProps {
   brand: string;
@@ -28,14 +28,7 @@ export const ChassisBuildPlate: React.FC<ChassisBuildPlateProps> = ({
   algorithm = 'AutoCX Hybrid Regressor',
   className = '',
 }) => {
-  // Generate deterministic chassis serial number based on car specs
-  const strHash = Math.abs(
-    `${brand}${model}${year}${kmDriven}`.split('').reduce((acc, char) => (acc << 5) - acc + char.charCodeAt(0), 0)
-  ).toString(16).toUpperCase().padStart(6, '0').slice(0, 6);
-
-  const chassisSerial = `ACX-IND-${year}-${strHash}`;
-
-  // Enthusiast provenance grade badge
+  // Enthusiast provenance classification
   const getProvenanceGrade = () => {
     const isEnthusiastVehicle =
       segment.toLowerCase().includes('suv') ||
@@ -45,29 +38,21 @@ export const ChassisBuildPlate: React.FC<ChassisBuildPlateProps> = ({
 
     if (kmDriven <= 35000 && owner.toLowerCase().includes('first')) {
       return {
-        badge: 'CLASS-A SURVIVOR SPEC',
         subtitle: 'Pristine Low-Mileage Provenance',
-        color: 'text-emerald-400 border-emerald-500/80 bg-emerald-950/40',
       };
     }
     if (isEnthusiastVehicle) {
       return {
-        badge: 'ENTHUSIAST ROAD & TRAIL SPEC',
         subtitle: 'Driver-Focused Mechanical Provenance',
-        color: 'text-cyan-400 border-cyan-500/80 bg-cyan-950/40',
       };
     }
     if (kmDriven >= 95000) {
       return {
-        badge: 'ENDURANCE VETERAN SPEC',
         subtitle: 'High-Kilometre Stress Tested',
-        color: 'text-amber-400 border-amber-500/80 bg-amber-950/40',
       };
     }
     return {
-      badge: 'TOURING COMMUTE SPEC',
       subtitle: 'Standard Consumer Provenance',
-      color: 'text-neutral-300 border-neutral-600 bg-neutral-900',
     };
   };
 
@@ -99,29 +84,8 @@ export const ChassisBuildPlate: React.FC<ChassisBuildPlateProps> = ({
         <div className="w-2 h-0.5 bg-neutral-950 transform rotate-60" />
       </div>
 
-      {/* Plaque Header: Stamped Metadata */}
-      <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-5 border-b border-neutral-800">
-        <div className="flex items-center gap-2.5">
-          <Award className="w-5 h-5 text-amber-400" />
-          <div className="font-mono">
-            <span className="text-[10px] tracking-widest uppercase text-neutral-400 block font-bold">
-              AUTOCX CERTIFIED CHASSIS BUILD SPECIFICATION
-            </span>
-            <span className="text-xs font-black tracking-wider text-amber-300">
-              SERIAL NO: {chassisSerial}
-            </span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 font-mono text-[11px]">
-          <span className={`px-2.5 py-1 rounded-md border font-bold uppercase tracking-wider text-[10px] ${provenance.color}`}>
-            {provenance.badge}
-          </span>
-        </div>
-      </div>
-
       {/* Primary Vehicle Build Data */}
-      <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-6 pt-6">
+      <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-6 pt-1">
         {/* Col 1: Vehicle Title & Identity */}
         <div className="md:col-span-2 space-y-3 font-mono">
           <div className="space-y-1">
@@ -132,9 +96,9 @@ export const ChassisBuildPlate: React.FC<ChassisBuildPlateProps> = ({
               {brand} {model}
             </h2>
             <div className="text-xs text-neutral-400 flex items-center gap-2">
-              <span>{provenance.subtitle}</span>
-              <span className="text-neutral-600">•</span>
               <span className="text-cyan-400 font-bold">{segment}</span>
+              <span className="text-neutral-600">•</span>
+              <span>{provenance.subtitle}</span>
             </div>
           </div>
 
@@ -183,20 +147,6 @@ export const ChassisBuildPlate: React.FC<ChassisBuildPlateProps> = ({
               </span>
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Bottom Plaque Seal */}
-      <div className="relative z-10 mt-6 pt-4 border-t border-neutral-800/90 flex flex-wrap items-center justify-between gap-3 text-[11px] font-mono text-neutral-400">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="w-4 h-4 text-emerald-400" />
-          <span className="text-neutral-300 font-semibold">
-            CHRONAX MONOCOQUE PLAQUE CERTIFIED • INDIAN AUTOMOTIVE DATASET TESTED
-          </span>
-        </div>
-        <div className="flex items-center gap-2 text-neutral-400">
-          <Wrench className="w-3.5 h-3.5" />
-          <span>SPEC NO: {chassisSerial.slice(-8)}</span>
         </div>
       </div>
     </div>

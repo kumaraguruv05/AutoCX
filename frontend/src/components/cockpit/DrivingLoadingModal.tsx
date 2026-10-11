@@ -111,7 +111,7 @@ export const DrivingLoadingModal: React.FC<DrivingLoadingModalProps> = ({
 
   const carInfo = detectCategory();
 
-  // Progress animation (2.4 seconds total duration)
+  // Progress animation (3.0 seconds total duration)
   useEffect(() => {
     if (!isOpen) {
       setProgress(0);
@@ -119,7 +119,7 @@ export const DrivingLoadingModal: React.FC<DrivingLoadingModalProps> = ({
     }
 
     const startTime = Date.now();
-    const duration = 2400; // 2.4s
+    const duration = 3000; // 3.0s total duration
 
     const interval = setInterval(() => {
       const elapsed = Date.now() - startTime;
