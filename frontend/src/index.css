@@ -33,3 +33,65 @@
     background-position: 200% 0;
   }
 }
+
+/* Automotive Cockpit Animations */
+@keyframes engine-start-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.4), 0 0 15px rgba(6, 182, 212, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(0, 0, 0, 0), 0 0 25px rgba(6, 182, 212, 0.6);
+  }
+}
+
+@keyframes battery-flow {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+@keyframes hud-scan {
+  0% {
+    top: 0%;
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 0.3;
+  }
+  100% {
+    top: 100%;
+    opacity: 0.8;
+  }
+}
+
+@keyframes needle-rev {
+  0% {
+    transform: rotate(-120deg);
+  }
+  50% {
+    transform: rotate(45deg);
+  }
+  100% {
+    transform: rotate(-120deg);
+  }
+}
+
+.animate-engine-pulse {
+  animation: engine-start-pulse 2.2s infinite ease-in-out;
+}
+
+.animate-battery-flow {
+  animation: battery-flow 2s infinite linear;
+}
+
+.animate-hud-scan {
+  animation: hud-scan 3s infinite linear;
+}
+
+.animate-spin-slow {
+  animation: spin 6s linear infinite;
+}
+

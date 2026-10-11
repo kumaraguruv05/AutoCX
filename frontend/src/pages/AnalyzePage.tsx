@@ -20,10 +20,12 @@ import {
   Disc3,
   Calendar,
   Zap,
-  Activity
+  Activity,
+  Cpu
 } from 'lucide-react';
 import { apiClient } from '@/services/api';
 import { storageService } from '@/services/storage';
+import { formatIndianDenomination, formatINR } from '@/utils/formatters';
 import {
   CarPredictionRequest,
   BatteryPredictionRequest,
@@ -31,6 +33,74 @@ import {
   BatteryPredictionResponse,
   VehicleProfile
 } from '@/types/api';
+
+// Typical real-world single-charge ranges for EV models (in km)
+const EV_DEFAULT_RANGES: Record<string, number> = {
+  'nexon': 260,
+  'tiago': 200,
+  'tigor': 210,
+  'punch': 270,
+  'curvv': 400,
+  'zs': 340,
+  'comet': 180,
+  'windsor': 280,
+  'kona': 350,
+  'ioniq': 460,
+  'ev6': 480,
+  'xuv400': 280,
+  'atto': 410,
+  'seal': 510,
+  'model 3': 440,
+  'model y': 450,
+  'ix': 400,
+  'eq': 420,
+};
+
+const getModelEvRange = (modelName: string): number => {
+  const lower = modelName.toLowerCase();
+  for (const [k, v] of Object.entries(EV_DEFAULT_RANGES)) {
+    if (lower.includes(k)) {
+      return v;
+    }
+  }
+  return 260;
+};
+
+// Physics-calibrated electrochemical battery parameter derivation from Odometer & EV Range
+export const deriveBatteryTelemetry = (km: number, rangeKm: number) => {
+  const safeRange = Math.max(80, rangeKm * 0.90);
+  const safeKm = Math.max(100, km);
+  const computedCycles = Math.max(10, Math.min(1200, Math.round(safeKm / safeRange)));
+  
+  // Internal resistance in Ohms (rises exponentially as cell ages)
+  const rInt = parseFloat((0.050 + 0.00022 * computedCycles + 0.00000042 * Math.pow(computedCycles, 2)).toFixed(4));
+  // Terminal voltage decay
+  const vMax = parseFloat(Math.max(4.05, 4.20 - 0.00028 * computedCycles).toFixed(2));
+  const vMin = parseFloat(Math.max(2.10, 2.50 - 0.00070 * computedCycles).toFixed(2));
+  const vMean = parseFloat(Math.max(3.15, 3.55 - 0.00075 * computedCycles).toFixed(2));
+  const vStd = parseFloat(Math.min(0.55, 0.35 + 0.00032 * computedCycles).toFixed(2));
+  // Surface temperature rises with Joule heating (I^2 * R)
+  const tMax = parseFloat((28.0 + rInt * 130.0).toFixed(1));
+  const tMean = parseFloat((tMax - 5.2).toFixed(1));
+  const dischargeDuration = Math.max(1600, Math.round(3500 - 3.4 * computedCycles));
+  // Estimated preliminary SOH percentage
+  const estimatedSoh = Math.max(45.0, Math.min(100.0, 100.0 - 0.048 * computedCycles - (rInt - 0.050) * 80.0));
+
+  return {
+    cycle: computedCycles,
+    ambient_temperature_c: 24.0,
+    voltage_max_v: vMax,
+    voltage_min_v: vMin,
+    voltage_mean_v: vMean,
+    voltage_std_v: vStd,
+    current_mean_a: 2.0,
+    temp_max_c: tMax,
+    temp_mean_c: tMean,
+    discharge_duration_sec: dischargeDuration,
+    internal_resistance_ohm: rInt,
+    estimated_soh: parseFloat(estimatedSoh.toFixed(1))
+  };
+};
 
 // Intelligent presets for EV diagnostic testing
 const EV_PRESETS = [
@@ -154,6 +224,13 @@ export const AnalyzePage: React.FC = () => {
   const [includeBatteryDiagnostic, setIncludeBatteryDiagnostic] = useState<boolean>(
     initialBattery ? true : initialCar ? initialCar.fuel === 'Electric' : true
   );
+  // EV range state & auto-derivation mode
+  const [evRangeKm, setEvRangeKm] = useState<string>(
+    initialCar ? String(getModelEvRange(initialCar.model)) : '260'
+  );
+  const [useAutoBatteryTelemetry, setUseAutoBatteryTelemetry] = useState<boolean>(true);
+  const [showManualBatterySensors, setShowManualBatterySensors] = useState<boolean>(false);
+
   const [cycle, setCycle] = useState<number>(initialBattery?.cycle || 65);
   const [ambientTemp, setAmbientTemp] = useState<number>(initialBattery?.ambient_temperature_c || 24.0);
   const [voltageMax, setVoltageMax] = useState<number>(initialBattery?.voltage_max_v || 4.19);
@@ -165,6 +242,26 @@ export const AnalyzePage: React.FC = () => {
   const [tempMean, setTempMean] = useState<number>(initialBattery?.temp_mean_c || 30.5);
   const [dischargeSec, setDischargeSec] = useState<number>(initialBattery?.discharge_duration_sec || 3150.0);
   const [internalResistance, setInternalResistance] = useState<number>(initialBattery?.internal_resistance_ohm || 0.078);
+
+  // Automatically derive NASA battery parameters from Odometer & EV Range
+  useEffect(() => {
+    if (fuel === 'Electric' && useAutoBatteryTelemetry) {
+      const km = kmDriven ? parseFloat(kmDriven) : 45000;
+      const range = evRangeKm ? parseFloat(evRangeKm) : 260;
+      const telemetry = deriveBatteryTelemetry(km, range);
+      setCycle(telemetry.cycle);
+      setAmbientTemp(telemetry.ambient_temperature_c);
+      setVoltageMax(telemetry.voltage_max_v);
+      setVoltageMin(telemetry.voltage_min_v);
+      setVoltageMean(telemetry.voltage_mean_v);
+      setVoltageStd(telemetry.voltage_std_v);
+      setCurrentMean(telemetry.current_mean_a);
+      setTempMax(telemetry.temp_max_c);
+      setTempMean(telemetry.temp_mean_c);
+      setDischargeSec(telemetry.discharge_duration_sec);
+      setInternalResistance(telemetry.internal_resistance_ohm);
+    }
+  }, [kmDriven, evRangeKm, fuel, useAutoBatteryTelemetry]);
 
   // Submission / Loading / Error state
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -213,19 +310,23 @@ export const AnalyzePage: React.FC = () => {
         if (profile?.year_min) {
           setYear(String(profile.year_min));
         }
+        const defaultRange = getModelEvRange(nextModel);
+        setEvRangeKm(String(defaultRange));
       }
     } else {
       setAvailableModels([]);
     }
   }, [brand, brandModelsMap]);
 
-  // Model change handler: updates model AND auto-fills launch year
+  // Model change handler: updates model, launch year, and EV range
   const handleModelChange = (newModel: string) => {
     setModel(newModel);
     const profile = carCatalog[`${brand}::${newModel}`];
     if (profile?.year_min) {
       setYear(String(profile.year_min));
     }
+    const defaultRange = getModelEvRange(newModel);
+    setEvRangeKm(String(defaultRange));
   };
 
   // Current active vehicle profile from catalog
@@ -288,6 +389,7 @@ export const AnalyzePage: React.FC = () => {
   }, [brand, model, carCatalog]);
 
   const applyEvPreset = (presetData: any) => {
+    setUseAutoBatteryTelemetry(false);
     setCycle(presetData.cycle);
     setAmbientTemp(presetData.ambient_temperature_c);
     setVoltageMax(presetData.voltage_max_v);
@@ -719,21 +821,33 @@ export const AnalyzePage: React.FC = () => {
 
           {/* Reference Price */}
           <div className="pt-4 border-t border-slate-200 space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <label className="text-xs font-semibold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
                 <DollarSign className="w-3.5 h-3.5 text-slate-900" />
                 <span>Original Invoice / Reference Price (INR ₹)</span>
                 <span className="text-slate-500 font-normal lowercase">(optional)</span>
               </label>
-              {originalPrice && (
-                <button
-                  type="button"
-                  onClick={() => setOriginalPrice('')}
-                  className="text-[11px] text-rose-600 hover:text-rose-700 font-mono transition-colors underline cursor-pointer"
-                >
-                  Clear Price
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                {currentProfile?.typical_original_price && !originalPrice && (
+                  <button
+                    type="button"
+                    onClick={() => setOriginalPrice(String(Math.round(currentProfile.typical_original_price)))}
+                    className="text-[11px] text-slate-700 hover:text-black bg-slate-100 hover:bg-slate-200 border border-slate-300 px-2.5 py-1 rounded-md font-mono transition-all hover:scale-[1.02] cursor-pointer flex items-center gap-1"
+                  >
+                    <Sparkles className="w-3 h-3 text-amber-500" />
+                    <span>Auto-Fill Benchmark: {formatIndianDenomination(currentProfile.typical_original_price)}</span>
+                  </button>
+                )}
+                {originalPrice && (
+                  <button
+                    type="button"
+                    onClick={() => setOriginalPrice('')}
+                    className="text-[11px] text-rose-600 hover:text-rose-700 font-mono transition-colors underline cursor-pointer"
+                  >
+                    Clear Price
+                  </button>
+                )}
+              </div>
             </div>
             <div className="relative">
               <span className="absolute left-3.5 top-2.5 text-slate-400 font-mono text-sm">₹</span>
@@ -746,8 +860,8 @@ export const AnalyzePage: React.FC = () => {
                 step="10000"
                 placeholder={
                   currentProfile
-                    ? `e.g. ${currentProfile.typical_original_price.toLocaleString()} (Estimated sticker price for ${model})`
-                    : "e.g. 850000 (leave blank to predict resale value only)"
+                    ? `e.g. ${currentProfile.typical_original_price.toLocaleString()} (AutoCX catalog benchmark for ${model})`
+                    : "e.g. 850000 (leave blank for automatic catalog lookup)"
                 }
                 value={originalPrice}
                 onChange={(e) => {
@@ -758,8 +872,8 @@ export const AnalyzePage: React.FC = () => {
                 className="w-full bg-slate-50 border border-slate-300 rounded-lg pl-8 pr-4 py-2.5 text-slate-900 text-sm focus:outline-none focus:bg-white focus:border-black focus:ring-1 focus:ring-black transition-all font-mono"
               />
             </div>
-            <p className="text-[11px] text-slate-500 leading-relaxed">
-              <strong className="text-slate-700">Why provide this?</strong> When an original purchase price is supplied, AutoCX anchors depreciation to real vehicle retention curves. If left blank, AutoCX estimates the fair market resale value directly from model segment kinematics.
+            <p className="text-[11px] text-slate-500 leading-relaxed font-mono">
+              <strong className="text-slate-700">Automated Benchmark Active:</strong> When left blank, AutoCX automatically cross-references the official catalog launch invoice {currentProfile?.typical_original_price ? `(${formatIndianDenomination(currentProfile.typical_original_price)})` : ''} to anchor depreciation curves.
             </p>
           </div>
 
@@ -833,236 +947,377 @@ export const AnalyzePage: React.FC = () => {
 
         {/* SECTION 2: CONDITIONAL EV BATTERY HEALTH SECTION */}
         {fuel === 'Electric' ? (
-          <div className="p-6 sm:p-8 rounded-2xl bg-gradient-to-br from-cyan-50/60 via-white to-sky-50/50 border border-cyan-300/80 space-y-6 shadow-sm relative overflow-hidden">
+          <div className="p-6 sm:p-8 rounded-2xl bg-gradient-to-br from-cyan-50/70 via-white to-sky-50/60 border border-cyan-300/90 space-y-6 shadow-sm relative overflow-hidden">
+            {/* Ambient HUD scanning bar */}
+            <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-cyan-500 to-transparent opacity-75 animate-pulse" />
+
             <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-cyan-200 gap-3">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-black text-white font-bold flex items-center justify-center text-sm">
-                  2
+                <div className="w-9 h-9 rounded-xl bg-black text-white font-bold flex items-center justify-center text-sm shadow-sm">
+                  <Zap className="w-5 h-5 text-cyan-400" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
                     <h2 className="text-lg font-bold text-slate-950 flex items-center gap-2">
                       <BatteryCharging className="w-5 h-5 text-cyan-600" />
-                      EV Battery Diagnostic Telemetry
+                      EV Traction Battery Telemetry & SOH
                     </h2>
-                    <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-cyan-100 text-cyan-800 border border-cyan-300">
-                      EV-Only
+                    <span className="text-[10px] font-mono uppercase px-2.5 py-0.5 rounded-full bg-cyan-100 text-cyan-800 border border-cyan-300 font-semibold tracking-wider">
+                      NASA PCoE Model
                     </span>
                   </div>
-                  <p className="text-xs text-slate-600 mt-0.5">
-                    Trained on NASA Ames Li-ion experimental cell aging degradation profiles
+                  <p className="text-xs text-slate-600 mt-0.5 font-mono">
+                    Electrochemical cell degradation & State of Health prediction
                   </p>
                 </div>
               </div>
 
               {/* Opt-out toggle */}
-              <label className="flex items-center gap-2 text-xs font-mono text-slate-700 cursor-pointer self-start sm:self-auto bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-2xs">
+              <label className="flex items-center gap-2 text-xs font-mono text-slate-700 cursor-pointer self-start sm:self-auto bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-2xs hover:border-black transition-colors">
                 <input
                   type="checkbox"
                   checked={includeBatteryDiagnostic}
                   onChange={(e) => setIncludeBatteryDiagnostic(e.target.checked)}
                   className="rounded text-black focus:ring-black"
                 />
-                <span>Enable SOH Diagnostic</span>
+                <span className="font-semibold">Enable SOH Diagnostic</span>
               </label>
             </div>
 
             {includeBatteryDiagnostic ? (
               <div className="space-y-6">
-                {/* Preset bar */}
-                <div className="p-3.5 rounded-xl bg-white border border-slate-200 space-y-2 shadow-2xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-800 font-semibold flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-cyan-600" />
-                      Quick Diagnostic Benchmark Presets
-                    </span>
-                    <span className="text-[11px] text-slate-500 font-mono">1-click test fill</span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    {EV_PRESETS.map((preset, idx) => (
+                {/* AI Odometer & Range Telemetry Derivation Cockpit */}
+                <div className="p-5 rounded-2xl bg-white border border-cyan-200 shadow-sm space-y-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-cyan-600 text-white flex items-center justify-center shadow-xs">
+                        <Cpu className="w-4 h-4 animate-pulse" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                          <span>Autonomous Battery Telemetry Generator</span>
+                          <span className="text-[10px] text-cyan-700 bg-cyan-50 border border-cyan-200 px-2 py-0.5 rounded font-mono font-semibold">
+                            AI Dynamic Derivation
+                          </span>
+                        </h3>
+                        <p className="text-[11px] text-slate-500 font-mono">
+                          Auto-calibrated from Odometer Accumulation ({kmDriven || '0'} km) & Single-Charge Range
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
                       <button
-                        key={idx}
                         type="button"
-                        onClick={() => applyEvPreset(preset.data)}
-                        className="text-left px-3.5 py-2.5 rounded-lg bg-slate-50 hover:bg-black text-slate-800 hover:text-white border border-slate-200 hover:border-black text-xs transition-all duration-200 font-mono hover:scale-[1.02] active:scale-[0.98] shadow-2xs cursor-pointer"
+                        onClick={() => setUseAutoBatteryTelemetry(!useAutoBatteryTelemetry)}
+                        className={`text-xs font-mono px-3 py-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 ${
+                          useAutoBatteryTelemetry
+                            ? 'bg-cyan-50 border-cyan-300 text-cyan-800 font-semibold'
+                            : 'bg-slate-100 border-slate-300 text-slate-700'
+                        }`}
                       >
-                        {preset.name}
+                        <Zap className="w-3.5 h-3.5 text-cyan-600" />
+                        <span>{useAutoBatteryTelemetry ? '⚡ Auto-Pilot Active' : '🛠️ Manual Sensor Mode'}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Range & Odometer Pairing Controls */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Odometer readout */}
+                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                      <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono uppercase tracking-wider">
+                        <span>Odometer Reading</span>
+                        <span className="text-emerald-600 font-semibold">From Form</span>
+                      </div>
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-2xl font-bold font-mono text-slate-900">
+                          {kmDriven ? Number(kmDriven).toLocaleString() : '0'}
+                        </span>
+                        <span className="text-xs text-slate-500 font-mono">KM run</span>
+                      </div>
+                    </div>
+
+                    {/* EV Single-Charge Range Input */}
+                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
+                      <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono uppercase tracking-wider">
+                        <span>EV Single-Charge Range</span>
+                        <span className="text-cyan-700 font-semibold font-mono">
+                          ~{Math.round((Number(evRangeKm) || 260) * 0.9)} km real-world DOD
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="80"
+                          max="800"
+                          step="10"
+                          value={evRangeKm}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/^0+(?=\d)/, '');
+                            setEvRangeKm(val);
+                          }}
+                          placeholder="260"
+                          className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-900 text-sm font-mono font-bold focus:border-black focus:ring-1 focus:ring-black outline-none"
+                        />
+                        <span className="text-xs font-mono text-slate-600 font-semibold">KM</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Quick EV Range Preset Pills */}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-[10px] text-slate-500 font-mono uppercase tracking-wider mr-1">
+                      Popular EV Ranges:
+                    </span>
+                    {[
+                      { label: 'Nexon EV', range: 260 },
+                      { label: 'Tiago EV', range: 200 },
+                      { label: 'Tigor EV', range: 210 },
+                      { label: 'ZS EV', range: 340 },
+                      { label: 'XUV400', range: 280 },
+                      { label: 'Ioniq 5', range: 460 },
+                      { label: 'Atto 3', range: 410 },
+                    ].map((m) => (
+                      <button
+                        key={m.label}
+                        type="button"
+                        onClick={() => {
+                          setEvRangeKm(String(m.range));
+                          setUseAutoBatteryTelemetry(true);
+                        }}
+                        className={`text-[11px] font-mono px-2.5 py-1 rounded-md border transition-all cursor-pointer ${
+                          evRangeKm === String(m.range)
+                            ? 'bg-black text-white border-black font-semibold shadow-xs'
+                            : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                        }`}
+                      >
+                        {m.label} ({m.range}km)
                       </button>
                     ))}
                   </div>
+
+                  {/* Animated High-Voltage Battery Pack Display */}
+                  <div className="p-5 rounded-2xl bg-neutral-950 text-white font-mono space-y-4 shadow-inner relative overflow-hidden border border-neutral-800">
+                    {/* Shimmering electron stream beam animation */}
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent opacity-80 animate-battery-flow" />
+
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                        <span className="text-xs text-neutral-300 font-bold uppercase tracking-widest flex items-center gap-2">
+                          <BatteryCharging className="w-4 h-4 text-cyan-400" />
+                          <span>HIGH-VOLTAGE TRACTION PACK SIMULATION</span>
+                        </span>
+                      </div>
+                      <span className="text-xs font-bold text-cyan-400 tracking-wider">
+                        {cycle} EQUIVALENT CHARGE CYCLES
+                      </span>
+                    </div>
+
+                    {/* State of Health Bar with Animated Gradient */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-neutral-400">Estimated State of Health (SOH)</span>
+                        <span className={`font-bold tracking-wider ${
+                          (100 - cycle * 0.048) >= 85
+                            ? 'text-emerald-400'
+                            : (100 - cycle * 0.048) >= 75
+                            ? 'text-cyan-400'
+                            : 'text-amber-400'
+                        }`}>
+                          {Math.max(45, Math.min(100, Math.round((100 - cycle * 0.048 - (internalResistance - 0.050) * 80) * 10) / 10))}% SOH
+                        </span>
+                      </div>
+                      <div className="h-3.5 w-full bg-neutral-800 rounded-full overflow-hidden p-0.5 border border-neutral-700 relative">
+                        <div
+                          className={`h-full rounded-full transition-all duration-700 relative ${
+                            (100 - cycle * 0.048) >= 85
+                              ? 'bg-gradient-to-r from-emerald-500 to-teal-400'
+                              : (100 - cycle * 0.048) >= 75
+                              ? 'bg-gradient-to-r from-cyan-500 to-sky-400'
+                              : 'bg-gradient-to-r from-amber-500 to-orange-400'
+                          }`}
+                          style={{
+                            width: `${Math.max(15, Math.min(100, 100 - cycle * 0.048 - (internalResistance - 0.050) * 80))}%`,
+                          }}
+                        >
+                          <div className="absolute inset-0 bg-white/20 animate-pulse" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Derived Physics Grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1 text-xs">
+                      <div className="space-y-0.5">
+                        <span className="text-[10px] text-neutral-400 uppercase block tracking-wider">Internal Resistance</span>
+                        <span className="text-neutral-200 font-bold flex items-center gap-1">
+                          <Activity className="w-3 h-3 text-cyan-400" />
+                          {internalResistance} Ω
+                        </span>
+                      </div>
+                      <div className="space-y-0.5">
+                        <span className="text-[10px] text-neutral-400 uppercase block tracking-wider">Terminal Spread</span>
+                        <span className="text-neutral-200 font-bold">
+                          {voltageMin}V – {voltageMax}V
+                        </span>
+                      </div>
+                      <div className="space-y-0.5">
+                        <span className="text-[10px] text-neutral-400 uppercase block tracking-wider">Peak Discharge Temp</span>
+                        <span className="text-neutral-200 font-bold">
+                          {tempMax} °C
+                        </span>
+                      </div>
+                      <div className="space-y-0.5">
+                        <span className="text-[10px] text-neutral-400 uppercase block tracking-wider">Discharge Time</span>
+                        <span className="text-neutral-200 font-bold">
+                          ~{(dischargeSec / 60).toFixed(0)} min
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Battery Input Fields */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-                  {/* Cycles */}
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 flex items-center justify-between">
-                      <span>Cycle Count</span>
-                      <span className="text-[10px] text-slate-500 font-mono">cycles</span>
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="1000"
-                      value={cycle}
-                      onChange={(e) => setCycle(Number(e.target.value))}
-                      className="w-full bg-white border border-slate-300 rounded-lg px-3.5 py-2 text-slate-900 text-sm font-mono focus:border-black focus:ring-1 focus:ring-black outline-none"
-                      required
-                    />
-                  </div>
-
-                  {/* Ambient Temperature */}
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 flex items-center justify-between">
-                      <span>Ambient Temp</span>
-                      <span className="text-[10px] text-slate-500 font-mono">°C</span>
-                    </label>
-                    <input
-                      type="number"
-                      step="0.5"
-                      value={ambientTemp}
-                      onChange={(e) => setAmbientTemp(Number(e.target.value))}
-                      className="w-full bg-white border border-slate-300 rounded-lg px-3.5 py-2 text-slate-900 text-sm font-mono focus:border-black focus:ring-1 focus:ring-black outline-none"
-                      required
-                    />
-                  </div>
-
-                  {/* Peak Voltage */}
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 flex items-center justify-between">
-                      <span>Peak Initial Voltage</span>
-                      <span className="text-[10px] text-slate-500 font-mono">V</span>
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="3.0"
-                      max="4.5"
-                      value={voltageMax}
-                      onChange={(e) => setVoltageMax(Number(e.target.value))}
-                      className="w-full bg-white border border-slate-300 rounded-lg px-3.5 py-2 text-slate-900 text-sm font-mono focus:border-black focus:ring-1 focus:ring-black outline-none"
-                      required
-                    />
-                  </div>
-
-                  {/* Cutoff Voltage */}
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 flex items-center justify-between">
-                      <span>Cutoff Voltage</span>
-                      <span className="text-[10px] text-slate-500 font-mono">V</span>
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="1.8"
-                      max="3.2"
-                      value={voltageMin}
-                      onChange={(e) => setVoltageMin(Number(e.target.value))}
-                      className="w-full bg-white border border-slate-300 rounded-lg px-3.5 py-2 text-slate-900 text-sm font-mono focus:border-black focus:ring-1 focus:ring-black outline-none"
-                      required
-                    />
-                  </div>
-
-                  {/* Mean Voltage */}
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 flex items-center justify-between">
-                      <span>Mean Discharge Voltage</span>
-                      <span className="text-[10px] text-slate-500 font-mono">V</span>
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="2.5"
-                      max="4.0"
-                      value={voltageMean}
-                      onChange={(e) => setVoltageMean(Number(e.target.value))}
-                      className="w-full bg-white border border-slate-300 rounded-lg px-3.5 py-2 text-slate-900 text-sm font-mono focus:border-black focus:ring-1 focus:ring-black outline-none"
-                      required
-                    />
-                  </div>
-
-                  {/* Discharge Current */}
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 flex items-center justify-between">
-                      <span>Mean Discharge Current</span>
-                      <span className="text-[10px] text-slate-500 font-mono">A</span>
-                    </label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      min="0.5"
-                      max="10.0"
-                      value={currentMean}
-                      onChange={(e) => setCurrentMean(Number(e.target.value))}
-                      className="w-full bg-white border border-slate-300 rounded-lg px-3.5 py-2 text-slate-900 text-sm font-mono focus:border-black focus:ring-1 focus:ring-black outline-none"
-                      required
-                    />
-                  </div>
-
-                  {/* Max Temperature */}
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 flex items-center justify-between">
-                      <span>Peak Operating Temp</span>
-                      <span className="text-[10px] text-slate-500 font-mono">°C</span>
-                    </label>
-                    <input
-                      type="number"
-                      step="0.5"
-                      value={tempMax}
-                      onChange={(e) => setTempMax(Number(e.target.value))}
-                      className="w-full bg-white border border-slate-300 rounded-lg px-3.5 py-2 text-slate-900 text-sm font-mono focus:border-black focus:ring-1 focus:ring-black outline-none"
-                      required
-                    />
-                  </div>
-
-                  {/* Discharge Duration */}
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 flex items-center justify-between">
-                      <span>Discharge Duration</span>
-                      <span className="text-[10px] text-slate-500 font-mono">seconds</span>
-                    </label>
-                    <input
-                      type="number"
-                      min="500"
-                      max="10000"
-                      value={dischargeSec}
-                      onChange={(e) => setDischargeSec(Number(e.target.value))}
-                      className="w-full bg-white border border-slate-300 rounded-lg px-3.5 py-2 text-slate-900 text-sm font-mono focus:border-black focus:ring-1 focus:ring-black outline-none"
-                      required
-                    />
-                    <span className="text-[10px] text-slate-500 font-mono">
-                      ~{(dischargeSec / 60).toFixed(1)} minutes
+                {/* Optional Expandable NASA Lab Sensor Inputs */}
+                <div className="pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowManualBatterySensors(!showManualBatterySensors)}
+                    className="text-xs text-slate-600 hover:text-black font-mono flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Sliders className="w-3.5 h-3.5" />
+                    <span>
+                      {showManualBatterySensors ? 'Hide' : 'Inspect or Override'} Raw NASA Ames Test-Bench Parameters ({cycle} cycles • {voltageMean}V mean)
                     </span>
-                  </div>
+                  </button>
 
-                  {/* Internal Resistance */}
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 flex items-center justify-between">
-                      <span>Internal Resistance</span>
-                      <span className="text-[10px] text-slate-500 font-mono">Ohms (Ω)</span>
-                    </label>
-                    <input
-                      type="number"
-                      step="0.001"
-                      min="0.01"
-                      max="0.5"
-                      value={internalResistance}
-                      onChange={(e) => setInternalResistance(Number(e.target.value))}
-                      className="w-full bg-white border border-slate-300 rounded-lg px-3.5 py-2 text-slate-900 text-sm font-mono focus:border-black focus:ring-1 focus:ring-black outline-none"
-                      required
-                    />
-                  </div>
+                  {showManualBatterySensors && (
+                    <div className="space-y-4 mt-3 pt-4 border-t border-cyan-200/80">
+                      {/* Preset bar */}
+                      <div className="p-3.5 rounded-xl bg-white border border-slate-200 space-y-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-800 font-semibold flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5 text-cyan-600" />
+                            <span>NASA Experimental Benchmark Profiles</span>
+                          </span>
+                          <span className="text-[10px] text-slate-500 font-mono">Overrides auto calculations</span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                          {EV_PRESETS.map((preset, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => applyEvPreset(preset.data)}
+                              className="text-left px-3 py-2 rounded-lg bg-slate-50 hover:bg-black text-slate-800 hover:text-white border border-slate-200 hover:border-black text-xs transition-all duration-200 font-mono cursor-pointer"
+                            >
+                              {preset.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Manual input fields */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[11px] text-slate-700 font-mono font-semibold block">Cycle Count</label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="1200"
+                            value={cycle}
+                            onChange={(e) => {
+                              setUseAutoBatteryTelemetry(false);
+                              setCycle(Number(e.target.value));
+                            }}
+                            className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-900 font-mono focus:border-black"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[11px] text-slate-700 font-mono font-semibold block">Peak Initial Voltage (V)</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="3.0"
+                            max="4.5"
+                            value={voltageMax}
+                            onChange={(e) => {
+                              setUseAutoBatteryTelemetry(false);
+                              setVoltageMax(Number(e.target.value));
+                            }}
+                            className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-900 font-mono focus:border-black"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[11px] text-slate-700 font-mono font-semibold block">Cutoff Voltage (V)</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="1.8"
+                            max="3.2"
+                            value={voltageMin}
+                            onChange={(e) => {
+                              setUseAutoBatteryTelemetry(false);
+                              setVoltageMin(Number(e.target.value));
+                            }}
+                            className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-900 font-mono focus:border-black"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[11px] text-slate-700 font-mono font-semibold block">Internal Resistance (Ω)</label>
+                          <input
+                            type="number"
+                            step="0.001"
+                            min="0.01"
+                            max="0.5"
+                            value={internalResistance}
+                            onChange={(e) => {
+                              setUseAutoBatteryTelemetry(false);
+                              setInternalResistance(Number(e.target.value));
+                            }}
+                            className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-900 font-mono focus:border-black"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[11px] text-slate-700 font-mono font-semibold block">Peak Operating Temp (°C)</label>
+                          <input
+                            type="number"
+                            step="0.5"
+                            value={tempMax}
+                            onChange={(e) => {
+                              setUseAutoBatteryTelemetry(false);
+                              setTempMax(Number(e.target.value));
+                            }}
+                            className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-900 font-mono focus:border-black"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[11px] text-slate-700 font-mono font-semibold block">Discharge Time (sec)</label>
+                          <input
+                            type="number"
+                            min="500"
+                            max="10000"
+                            value={dischargeSec}
+                            onChange={(e) => {
+                              setUseAutoBatteryTelemetry(false);
+                              setDischargeSec(Number(e.target.value));
+                            }}
+                            className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-900 font-mono focus:border-black"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                <div className="p-3 rounded-lg bg-cyan-50/70 border border-cyan-200 text-xs text-slate-700 flex items-start gap-2.5">
+                <div className="p-3.5 rounded-xl bg-cyan-50/70 border border-cyan-200 text-xs text-slate-700 flex items-start gap-2.5 font-mono">
                   <Info className="w-4 h-4 text-cyan-700 shrink-0 mt-0.5" />
                   <span>
-                    AutoCX estimates battery SOH based on cycle kinetics and terminal resistance. If diagnostic sensor logs are unavailable, uncheck the box above to evaluate vehicle resale value independently.
+                    AutoCX estimates battery SOH using Li-ion cell aging kinetics from NASA Ames PCoE research. Parameters update automatically as you adjust vehicle mileage and EV single-charge range.
                   </span>
                 </div>
               </div>
             ) : (
-              <div className="p-4 rounded-xl bg-slate-100 border border-slate-200 text-xs text-slate-600 flex items-center gap-3">
+              <div className="p-4 rounded-xl bg-slate-100 border border-slate-200 text-xs text-slate-600 flex items-center gap-3 font-mono">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                 <span>
                   Battery SOH diagnostic is toggled off. You will receive an EV market resale valuation based on vehicle age, mileage, and brand specifications alone.
@@ -1082,7 +1337,7 @@ export const AnalyzePage: React.FC = () => {
           </div>
         ) : null}
 
-        {/* Action Button */}
+        {/* Action Button with Engine Start / Stop Styling */}
         <div className="flex flex-col sm:flex-row items-center justify-end gap-4 pt-4 border-t border-slate-200">
           <button
             type="button"
@@ -1097,28 +1352,34 @@ export const AnalyzePage: React.FC = () => {
               setOwner('First Owner');
               setSeats(5);
               setOriginalPrice('');
+              setEvRangeKm('260');
+              setUseAutoBatteryTelemetry(true);
             }}
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white hover:bg-slate-100 text-slate-700 hover:text-black border border-slate-300 hover:border-black text-xs font-mono transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shadow-2xs group cursor-pointer"
           >
-            <RotateCcw className="w-3.5 h-3.5 group-hover:-rotate-45 transition-transform duration-300" />
+            <Disc3 className="w-4 h-4 group-hover:rotate-180 transition-transform duration-500" />
             <span>Reset Defaults</span>
           </button>
 
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-xl bg-black hover:bg-neutral-800 text-white font-bold text-sm shadow-lg shadow-black/20 hover:shadow-2xl hover:scale-[1.03] active:scale-[0.98] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group cursor-pointer"
+            className="relative group overflow-hidden w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-3.5 rounded-xl bg-black hover:bg-neutral-900 text-white font-bold text-sm shadow-xl shadow-black/25 hover:shadow-2xl hover:scale-[1.03] active:scale-[0.98] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer border border-neutral-700 animate-engine-pulse"
           >
+            {/* Ambient racing sheen */}
+            <span className="absolute inset-0 rounded-xl bg-gradient-to-r from-cyan-500/10 via-transparent to-emerald-500/10 group-hover:opacity-100 opacity-50 transition-opacity" />
             {isLoading ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span>Running Inference Pipelines...</span>
+                <span className="tracking-wide">RUNNING VALUATION PIPELINES...</span>
               </>
             ) : (
               <>
-                <Gauge className="w-4 h-4 text-emerald-400 group-hover:rotate-45 transition-transform duration-300" />
-                <span>Compute Valuation & SOH</span>
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
+                <div className="w-6 h-6 rounded-full bg-neutral-800 border border-neutral-600 flex items-center justify-center shadow-inner group-hover:border-cyan-400 transition-colors">
+                  <Gauge className="w-3.5 h-3.5 text-cyan-400 group-hover:rotate-90 transition-transform duration-500" />
+                </div>
+                <span className="tracking-wide">START VALUATION & SOH PIPELINE</span>
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300 text-neutral-300" />
               </>
             )}
           </button>

@@ -187,11 +187,50 @@ class PredictionService:
         guardrails_applied = []
         
         # -------------------------------------------------------------
-        # GUARDRAILS & POST-PROCESSING CLAMPING
+        # DYNAMIC DEPRECIATION PENALTIES & MARKET ADJUSTMENTS
         # -------------------------------------------------------------
         
-        # Guardrail A: Hard Ceiling on Original Purchase Price
-        if request.original_price and request.original_price > 0:
+        # 1. Dynamic High-Mileage Non-Linear Penalty (Applied across all segments)
+        # Beyond 75,000 km, apply progressive non-linear wear discount independent of age
+        if request.km_driven > 75000:
+            excess_km = request.km_driven - 75000
+            # Progressive decay curve matching Indian used-car buyer mileage thresholds
+            mileage_penalty = min(0.28, (excess_km / 125000.0) ** 0.85 * 0.25)
+            predicted_price *= (1.0 - mileage_penalty)
+            guardrails_applied.append(
+                f"Dynamic Mileage Penalty: -{mileage_penalty*100:.1f}% applied for high odometer wear ({request.km_driven:,.0f} km)."
+            )
+
+        # 2. EV-Specific Secondary Market Adjustment Factor
+        # Compensates for early-gen rapid battery tech evolution, out-of-warranty replacement anxiety
+        if request.fuel.lower() == "electric":
+            ev_tech_factor = 0.92 if vehicle_age <= 2 else (0.86 if vehicle_age <= 4 else 0.80)
+            ev_battery_anxiety_factor = 1.0
+            if request.km_driven > 60000:
+                excess_ev_km = request.km_driven - 60000
+                ev_battery_anxiety_factor = max(0.75, 1.0 - (excess_ev_km / 140000.0) * 0.25)
+            
+            ev_market_factor = ev_tech_factor * ev_battery_anxiety_factor
+            predicted_price *= ev_market_factor
+            guardrails_applied.append(
+                f"EV Secondary Market Adjustment: -{(1.0 - ev_market_factor)*100:.1f}% for tech obsolescence and battery secondary anxiety."
+            )
+
+        # -------------------------------------------------------------
+        # DOMAIN GUARDRAILS & POST-PROCESSING CLAMPING
+        # -------------------------------------------------------------
+        
+        # Automated Reference Invoice Lookup from AutoCX Vehicle Catalog
+        catalog_typical_price = catalog_profile.get("typical_original_price")
+        effective_original_price = (
+            request.original_price
+            if (request.original_price and request.original_price > 0)
+            else catalog_typical_price
+        )
+        is_automated_invoice = bool(request.original_price is None or request.original_price <= 0) and bool(catalog_typical_price)
+
+        # Guardrail A: Hard Ceiling on Original Purchase Price / Catalog Benchmark
+        if effective_original_price and effective_original_price > 0:
             # Empirical age-retention decay curve
             if vehicle_age <= 1:
                 base_ret = 0.95
@@ -226,16 +265,26 @@ class PredictionService:
             elif segment == "Micro / Entry Hatchback":
                 base_ret -= 0.05
                 
+            # EV-specific retention adjustment
+            if request.fuel.lower() == "electric":
+                base_ret *= 0.85 # Secondary EV market depreciation discount
+                if request.km_driven > 70000:
+                    base_ret *= max(0.78, 1.0 - (request.km_driven - 70000) / 150000.0 * 0.25)
+                
             # Odometer penalty beyond 100,000 km
             if request.km_driven > 100000:
                 base_ret *= max(0.65, 1.0 - (request.km_driven - 100000) / 250000.0)
                 
             base_ret = float(np.clip(base_ret, 0.05, 0.98))
-            original_ceiling = float(request.original_price * base_ret)
+            
+            # If using automated benchmark invoice, allow 8% extra variant headroom
+            ceiling_factor = base_ret * (1.08 if is_automated_invoice else 1.0)
+            original_ceiling = float(effective_original_price * ceiling_factor)
             
             if predicted_price > original_ceiling:
                 predicted_price = original_ceiling
-                guardrails_applied.append(f"Hard Ceiling: Resale constrained to {base_ret*100:.1f}% max residual based on vehicle age ({vehicle_age} yrs).")
+                prefix = "Catalog Auto-Ceiling" if is_automated_invoice else "Hard Ceiling"
+                guardrails_applied.append(f"{prefix}: Resale constrained to {ceiling_factor*100:.1f}% max residual based on vehicle age ({vehicle_age} yrs).")
                 
         # Guardrail B: Microcar / Discontinued Budget Microcar Physical Ceilings
         if segment == "Micro / Entry Hatchback":
@@ -266,13 +315,13 @@ class PredictionService:
             
         predicted_price = float(round(predicted_price, 2))
         
-        # Calculate depreciation if original price is supplied
+        # Calculate depreciation using either user-supplied or catalog benchmark invoice price
         depreciation_info = None
-        if request.original_price and request.original_price > 0:
-            diff = request.original_price - predicted_price
-            pct = (diff / request.original_price) * 100.0
+        if effective_original_price and effective_original_price > 0:
+            diff = effective_original_price - predicted_price
+            pct = (diff / effective_original_price) * 100.0
             depreciation_info = DepreciationInfo(
-                original_price=float(request.original_price),
+                original_price=float(effective_original_price),
                 depreciation_amount=float(round(diff, 2)),
                 depreciation_percentage=float(round(pct, 2)),
                 is_appreciation=diff < 0
