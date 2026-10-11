@@ -31,9 +31,9 @@ export const LandingPage: React.FC = () => {
           {/* Headline */}
           <div className="space-y-4">
             <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-slate-950 leading-tight">
-              Time Changes Cars.{' '}
+              AutoCX —{' '}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-slate-900 via-cyan-700 to-blue-700">
-                AutoCX Measures Value.
+                Every Mile Has a Meaning.
               </span>
             </h1>
             <p className="max-w-2xl mx-auto text-lg text-slate-600 leading-relaxed">

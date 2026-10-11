@@ -44,7 +44,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 def root():
     return {
         "app": "AutoCX — Auto ChronAx",
-        "tagline": "Time Changes Cars. AutoCX Measures Value.",
+        "tagline": "AutoCX — Every Mile Has a Meaning.",
         "docs": "/docs",
         "status": "online"
     }

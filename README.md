@@ -1,5 +1,5 @@
 # AutoCX — Auto ChronAx
-> **"Time Changes Cars. AutoCX Measures Value."**
+> **"AutoCX — Every Mile Has a Meaning."**
 
 AutoCX is an intelligent automotive analytics platform that predicts used-car resale values and estimates battery State of Health (SOH) for eligible electric vehicles using machine learning.
 

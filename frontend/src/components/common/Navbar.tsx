@@ -45,8 +45,8 @@ export const Navbar: React.FC = () => {
                 Auto ChronAx
               </span>
             </div>
-            <p className="text-[10px] text-slate-500 hidden sm:block tracking-wide">
-              Time Changes Cars. AutoCX Measures Value.
+            <p className="text-[10px] text-slate-500 hidden sm:block tracking-wide font-medium">
+              Every Mile Has a Meaning.
             </p>
           </div>
         </Link>

@@ -17,7 +17,7 @@ export const Footer: React.FC = () => {
               <span className="text-xs text-slate-500 font-mono">Auto ChronAx</span>
             </div>
             <p className="text-slate-600 text-sm max-w-md leading-relaxed">
-              &ldquo;Time Changes Cars. AutoCX Measures Value.&rdquo;
+              &ldquo;AutoCX — Every Mile Has a Meaning.&rdquo;
               Rooted in <span className="text-slate-900 font-semibold">Chronos</span> (Time) and{' '}
               <span className="text-slate-900 font-semibold">Axia</span> (Value), AutoCX delivers
               rigorous machine learning insights for used vehicle resale values and electric vehicle battery health.
