@@ -21,7 +21,9 @@ import {
   Calendar,
   Zap,
   Activity,
-  Cpu
+  Cpu,
+  Power,
+  Flame
 } from 'lucide-react';
 import { apiClient } from '@/services/api';
 import { storageService } from '@/services/storage';
@@ -157,6 +159,122 @@ const EV_PRESETS = [
   },
 ];
 
+export interface GaragePreset {
+  id: string;
+  badge: string;
+  title: string;
+  subtitle: string;
+  tagline: string;
+  brand: string;
+  model: string;
+  year: string;
+  kmDriven: string;
+  fuel: string;
+  transmission: string;
+  owner: string;
+  sellerType: string;
+  seats: number;
+  engineCc: string;
+  maxPowerBhp: string;
+  mileageKmpl: string;
+  originalPrice: string;
+  evRangeKm?: string;
+  accentBorder: string;
+  accentBadge: string;
+}
+
+export const GARAGE_PRESETS: GaragePreset[] = [
+  {
+    id: 'track_special',
+    badge: '🏎️ TRACK SPEC',
+    title: 'Skoda Octavia 1.8 TSI',
+    subtitle: 'Executive Sport Sedan',
+    tagline: 'Turbo Petrol • 177 BHP • 32k km',
+    brand: 'Skoda',
+    model: 'Octavia 1.8 TSI L&K',
+    year: '2021',
+    kmDriven: '32000',
+    fuel: 'Petrol',
+    transmission: 'Automatic',
+    owner: 'First Owner',
+    sellerType: 'Individual',
+    seats: 5,
+    engineCc: '1798',
+    maxPowerBhp: '177',
+    mileageKmpl: '20.0',
+    originalPrice: '2850000',
+    accentBorder: 'hover:border-rose-500 hover:shadow-rose-500/10',
+    accentBadge: 'bg-rose-100 text-rose-800 border-rose-300',
+  },
+  {
+    id: 'ev_stress_test',
+    badge: '⚡ EV SOH BENCHMARK',
+    title: 'Tata Nexon EV XZ Plus',
+    subtitle: 'Electric Traction BEV',
+    tagline: 'NASA SOH • 69% Critical EOL SOH',
+    brand: 'Tata',
+    model: 'Nexon EV XZ Plus',
+    year: '2020',
+    kmDriven: '58000',
+    fuel: 'Electric',
+    transmission: 'Automatic',
+    owner: 'First Owner',
+    sellerType: 'Individual',
+    seats: 5,
+    engineCc: '0',
+    maxPowerBhp: '83.8',
+    mileageKmpl: '18.8',
+    originalPrice: '1580000',
+    evRangeKm: '220',
+    accentBorder: 'hover:border-cyan-500 hover:shadow-cyan-500/10',
+    accentBadge: 'bg-cyan-100 text-cyan-800 border-cyan-300',
+  },
+  {
+    id: 'trail_4x4',
+    badge: '🏔️ 4X4 TRAIL SPEC',
+    title: 'Mahindra Thar LX Diesel',
+    subtitle: 'Rugged Off-Road 4WD',
+    tagline: 'Diesel 4x4 • 300 Nm • 28k km',
+    brand: 'Mahindra',
+    model: 'Thar LX 4-STR Hard Top Diesel MT',
+    year: '2022',
+    kmDriven: '28000',
+    fuel: 'Diesel',
+    transmission: 'Manual',
+    owner: 'First Owner',
+    sellerType: 'Individual',
+    seats: 4,
+    engineCc: '2184',
+    maxPowerBhp: '130',
+    mileageKmpl: '16.0',
+    originalPrice: '1680000',
+    accentBorder: 'hover:border-amber-500 hover:shadow-amber-500/10',
+    accentBadge: 'bg-amber-100 text-amber-800 border-amber-300',
+  },
+  {
+    id: 'city_commuter',
+    badge: '🏙️ CITY COMMUTE',
+    title: 'Maruti Swift 1.2',
+    subtitle: 'High Resale Compact',
+    tagline: 'High Retention • 20.4 kmpl • 1st Owner',
+    brand: 'Maruti',
+    model: 'Swift 1.2',
+    year: '2019',
+    kmDriven: '42000',
+    fuel: 'Petrol',
+    transmission: 'Manual',
+    owner: 'First Owner',
+    sellerType: 'Individual',
+    seats: 5,
+    engineCc: '1197',
+    maxPowerBhp: '81.8',
+    mileageKmpl: '20.4',
+    originalPrice: '750000',
+    accentBorder: 'hover:border-emerald-500 hover:shadow-emerald-500/10',
+    accentBadge: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+  },
+];
+
 const DEFAULT_BRANDS = [
   'Maruti', 'Hyundai', 'Mahindra', 'Tata', 'Honda', 'Toyota', 'Ford',
   'Renault', 'Volkswagen', 'Chevrolet', 'Nissan', 'Skoda', 'BMW', 'Mercedes-Benz', 'MG', 'Audi'
@@ -278,6 +396,48 @@ export const AnalyzePage: React.FC = () => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     if (pendingAnalysisState) {
       navigate('/results', { state: pendingAnalysisState });
+    }
+  };
+
+  const applyPreset = (preset: GaragePreset) => {
+    setError(null);
+    const models = brandModelsMap[preset.brand] || [];
+    setAvailableModels(models);
+    setBrand(preset.brand);
+    setModel(preset.model);
+    setYear(preset.year);
+    setKmDriven(preset.kmDriven);
+    setFuel(preset.fuel);
+    setTransmission(preset.transmission);
+    setOwner(preset.owner);
+    setSellerType(preset.sellerType);
+    setSeats(preset.seats);
+    setEngineCc(preset.engineCc);
+    setMaxPowerBhp(preset.maxPowerBhp);
+    setMileageKmpl(preset.mileageKmpl);
+    setOriginalPrice(preset.originalPrice);
+
+    if (preset.fuel === 'Electric') {
+      setIncludeBatteryDiagnostic(true);
+      if (preset.evRangeKm) {
+        setEvRangeKm(preset.evRangeKm);
+        const km = parseFloat(preset.kmDriven);
+        const range = parseFloat(preset.evRangeKm);
+        const telemetry = deriveBatteryTelemetry(km, range);
+        setCycle(telemetry.cycle);
+        setAmbientTemp(telemetry.ambient_temperature_c);
+        setVoltageMax(telemetry.voltage_max_v);
+        setVoltageMin(telemetry.voltage_min_v);
+        setVoltageMean(telemetry.voltage_mean_v);
+        setVoltageStd(telemetry.voltage_std_v);
+        setCurrentMean(telemetry.current_mean_a);
+        setTempMax(telemetry.temp_max_c);
+        setTempMean(telemetry.temp_mean_c);
+        setDischargeSec(telemetry.discharge_duration_sec);
+        setInternalResistance(telemetry.internal_resistance_ohm);
+      }
+    } else {
+      setIncludeBatteryDiagnostic(false);
     }
   };
 
@@ -518,6 +678,78 @@ export const AnalyzePage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Feature 2: Enthusiast Garage Quick Presets (1-Click Test Drive) */}
+      <div className="p-5 sm:p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-black flex items-center justify-center text-white text-xs">
+              🏁
+            </div>
+            <div>
+              <h3 className="text-xs font-mono font-bold tracking-wider uppercase text-slate-900">
+                Enthusiast Garage Presets • 1-Click Fast Fill
+              </h3>
+              <p className="text-[11px] text-slate-500 font-mono">
+                Click any benchmark vehicle below to instantly load verified factory specs into the pipeline.
+              </p>
+            </div>
+          </div>
+          <span className="text-[10px] font-mono font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200 self-start sm:self-auto">
+            4 PRESETS READY
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {GARAGE_PRESETS.map((p) => {
+            const isSelected = brand === p.brand && model === p.model;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => applyPreset(p)}
+                className={`p-3.5 rounded-xl border text-left transition-all duration-200 group cursor-pointer flex flex-col justify-between ${
+                  isSelected
+                    ? 'bg-slate-900 text-white border-black shadow-md ring-2 ring-black/10'
+                    : 'bg-slate-50/70 hover:bg-white text-slate-800 border-slate-200 ' + p.accentBorder
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-1 mb-1.5">
+                    <span
+                      className={`text-[9px] font-mono px-2 py-0.5 rounded font-bold uppercase tracking-wider ${
+                        isSelected
+                          ? 'bg-white/20 text-white border border-white/30'
+                          : p.accentBadge
+                      }`}
+                    >
+                      {p.badge}
+                    </span>
+                    {isSelected && (
+                      <span className="text-[10px] text-cyan-400 font-mono font-bold">ACTIVE</span>
+                    )}
+                  </div>
+                  <div className={`font-bold text-sm tracking-tight ${isSelected ? 'text-white' : 'text-slate-950'}`}>
+                    {p.title}
+                  </div>
+                  <div className={`text-[11px] mt-0.5 ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}>
+                    {p.subtitle}
+                  </div>
+                </div>
+
+                <div
+                  className={`mt-2.5 pt-2 border-t text-[10px] font-mono flex items-center justify-between ${
+                    isSelected ? 'border-neutral-700 text-slate-300' : 'border-slate-200 text-slate-500'
+                  }`}
+                >
+                  <span className="truncate">{p.tagline}</span>
+                  <ArrowRight className={`w-3 h-3 shrink-0 ml-1 group-hover:translate-x-0.5 transition-transform ${isSelected ? 'text-cyan-400' : 'text-slate-400'}`} />
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       <form onSubmit={handleSubmit} autoComplete="off" className="space-y-8">
         {/* SECTION 1: General Vehicle Information */}
@@ -1374,57 +1606,105 @@ export const AnalyzePage: React.FC = () => {
           </div>
         ) : null}
 
-        {/* Action Button with Engine Start / Stop Styling & Steering Wheel F1 Shift Lights */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-5 pt-6 border-t border-slate-200">
-          <F1ShiftLights isRevving={isLoading} intensity={isLoading ? 10 : 5} showLabels />
+        {/* Feature 1: Cockpit Ignition Console & Push-to-Start Engine Button */}
+        <div className="rounded-3xl bg-neutral-950 border-2 border-neutral-800 p-6 sm:p-8 text-white shadow-2xl relative overflow-hidden space-y-6">
+          {/* Subtle ambient ignition glow */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_70%_50%,rgba(239,68,68,0.12),transparent)] pointer-events-none" />
 
-          <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto justify-end">
-            <button
-              type="button"
-              onClick={() => {
-              setBrand('Maruti');
-              setModel('Swift Dzire');
-              setYear('2018');
-              setKmDriven('45000');
-              setFuel('Petrol');
-              setTransmission('Manual');
-              setSellerType('Individual');
-              setOwner('First Owner');
-              setSeats(5);
-              setOriginalPrice('');
-              setEvRangeKm('260');
-              setUseAutoBatteryTelemetry(true);
-            }}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white hover:bg-slate-100 text-slate-700 hover:text-black border border-slate-300 hover:border-black text-xs font-mono transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shadow-2xs group cursor-pointer"
-          >
-            <Disc3 className="w-4 h-4 group-hover:rotate-180 transition-transform duration-500" />
-            <span>Reset Defaults</span>
-          </button>
+          {/* Top Bar: Shift Lights & Telemetry Indicator */}
+          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-4 pb-4 border-b border-neutral-800/80">
+            <F1ShiftLights isRevving={isLoading} intensity={isLoading ? 10 : 5} showLabels />
+            <div className="flex items-center gap-3 font-mono text-xs">
+              <span className="flex items-center gap-1.5 text-neutral-400">
+                <Cpu className="w-3.5 h-3.5 text-cyan-400" />
+                <span>CHRONAX v2.6 DUAL CORE</span>
+              </span>
+              <span className="text-neutral-700">•</span>
+              <span className="flex items-center gap-1.5 text-emerald-400 font-semibold">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>TELEMETRY READY</span>
+              </span>
+            </div>
+          </div>
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="relative group overflow-hidden w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-3.5 rounded-xl bg-black hover:bg-neutral-900 text-white font-bold text-sm shadow-xl shadow-black/25 hover:shadow-2xl hover:scale-[1.03] active:scale-[0.98] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer border border-neutral-700 animate-engine-pulse"
-          >
-            {/* Ambient racing sheen */}
-            <span className="absolute inset-0 rounded-xl bg-gradient-to-r from-cyan-500/10 via-transparent to-emerald-500/10 group-hover:opacity-100 opacity-50 transition-opacity" />
-            {isLoading ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span className="tracking-wide">RUNNING VALUATION PIPELINES...</span>
-              </>
-            ) : (
-              <>
-                <div className="w-6 h-6 rounded-full bg-neutral-800 border border-neutral-600 flex items-center justify-center shadow-inner group-hover:border-cyan-400 transition-colors">
-                  <Gauge className="w-3.5 h-3.5 text-cyan-400 group-hover:rotate-90 transition-transform duration-500" />
+          {/* Bottom Area: Controls & Push-to-Start Button */}
+          <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-6">
+            {/* Left side details & reset */}
+            <div className="space-y-2 text-center sm:text-left font-mono">
+              <div className="flex items-center justify-center sm:justify-start gap-2">
+                <Flame className="w-4 h-4 text-red-500 animate-pulse" />
+                <span className="text-xs font-bold uppercase tracking-widest text-neutral-200">
+                  COCKPIT IGNITION ARMED
+                </span>
+              </div>
+              <p className="text-xs text-neutral-400 max-w-sm">
+                Press the motorsport ignition switch to ignite the empirical valuation engine & NASA Ames cell kinetics.
+              </p>
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBrand('Maruti');
+                    setModel('Swift Dzire');
+                    setYear('2018');
+                    setKmDriven('45000');
+                    setFuel('Petrol');
+                    setTransmission('Manual');
+                    setSellerType('Individual');
+                    setOwner('First Owner');
+                    setSeats(5);
+                    setOriginalPrice('');
+                    setEvRangeKm('260');
+                    setUseAutoBatteryTelemetry(true);
+                  }}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-neutral-400 hover:text-white border border-neutral-700 text-xs font-mono transition-all cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Reset Form</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Right side: Push to Start Engine Button */}
+            <div className="flex flex-col items-center gap-2">
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="group/ignition relative flex flex-col items-center justify-center w-36 h-36 rounded-full bg-gradient-to-b from-neutral-800 via-neutral-900 to-black p-2.5 shadow-[0_0_35px_rgba(239,68,68,0.4)] hover:shadow-[0_0_55px_rgba(239,68,68,0.7)] border-4 border-neutral-700/80 hover:border-red-500 transition-all duration-300 active:scale-95 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+              >
+                {/* Outer pulsating LED ring */}
+                <div className="absolute inset-1 rounded-full border-2 border-red-500/40 animate-pulse pointer-events-none group-hover/ignition:border-red-400" />
+
+                {/* Inner crimson push face */}
+                <div className="w-full h-full rounded-full bg-gradient-to-b from-red-600 via-red-700 to-red-950 flex flex-col items-center justify-center text-white shadow-inner border border-red-400/40 group-hover/ignition:from-red-500 group-hover/ignition:to-red-900 transition-all">
+                  {isLoading ? (
+                    <div className="flex flex-col items-center gap-1">
+                      <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span className="text-[9px] font-mono tracking-widest uppercase font-black text-red-200">
+                        CRANKING
+                      </span>
+                    </div>
+                  ) : (
+                    <>
+                      <span className="text-[10px] font-mono font-black tracking-widest uppercase text-red-100 group-hover/ignition:text-white drop-shadow">
+                        ENGINE
+                      </span>
+                      <div className="my-1 w-7 h-7 rounded-full bg-black/40 border border-red-300/30 flex items-center justify-center shadow-inner group-hover/ignition:scale-110 group-hover/ignition:rotate-12 transition-all duration-300">
+                        <Power className="w-4 h-4 text-white drop-shadow" />
+                      </div>
+                      <span className="text-[9px] font-mono font-black tracking-wider uppercase text-red-200 group-hover/ignition:text-white drop-shadow">
+                        START / STOP
+                      </span>
+                    </>
+                  )}
                 </div>
-                <span className="tracking-wide">START VALUATION & SOH PIPELINE</span>
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300 text-neutral-300" />
-              </>
-            )}
-          </button>
+              </button>
+              <span className="text-[10px] font-mono text-neutral-400 tracking-wider uppercase font-semibold">
+                PUSH TO START PIPELINE
+              </span>
+            </div>
+          </div>
         </div>
-      </div>
     </form>
 
     {/* 2D Parallax Driving Loading Modal */}
