@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import {
   Car,
@@ -38,6 +38,11 @@ export const ResultsPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const state = location.state as LocationState | undefined;
+
+  useEffect(() => {
+    // Instantly scroll to top so gauge cluster and startup needle sweep are directly front and center
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, []);
 
   // If no state passed (e.g. direct URL), try to load the latest saved analysis from storage
   let currentAnalysis: LocationState | null = state || null;

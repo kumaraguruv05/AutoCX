@@ -464,6 +464,9 @@ export const AnalyzePage: React.FC = () => {
         batteryResult,
       });
 
+      // Reset scroll position so Results page directly renders gauge dashboard at the top
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+
       // Navigate to results page with analysis in state
       navigate('/results', {
         state: {
