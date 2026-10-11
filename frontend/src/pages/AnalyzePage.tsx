@@ -33,6 +33,8 @@ import {
   BatteryPredictionResponse,
   VehicleProfile
 } from '@/types/api';
+import { F1ShiftLights } from '@/components/cockpit/F1ShiftLights';
+import { EVSkateboardChassis } from '@/components/cockpit/EVSkateboardChassis';
 
 // Typical real-world single-charge ranges for EV models (in km)
 const EV_DEFAULT_RANGES: Record<string, number> = {
@@ -1323,6 +1325,16 @@ export const AnalyzePage: React.FC = () => {
                   )}
                 </div>
 
+                {/* Interactive Motorsport EV Skateboard Chassis Blueprint */}
+                <EVSkateboardChassis
+                  sohPercent={Math.max(45, Math.min(100, Math.round((100 - cycle * 0.048 - (internalResistance - 0.050) * 80) * 10) / 10))}
+                  cycleCount={cycle}
+                  voltageSpread={Math.round((voltageMax - voltageMin) * 100) / 100}
+                  tempPeak={tempMax}
+                  ambientTemp={ambientTemp}
+                  internalResistance={internalResistance}
+                />
+
                 <div className="p-3.5 rounded-xl bg-cyan-50/70 border border-cyan-200 text-xs text-slate-700 flex items-start gap-2.5 font-mono">
                   <Info className="w-4 h-4 text-cyan-700 shrink-0 mt-0.5" />
                   <span>
@@ -1351,11 +1363,14 @@ export const AnalyzePage: React.FC = () => {
           </div>
         ) : null}
 
-        {/* Action Button with Engine Start / Stop Styling */}
-        <div className="flex flex-col sm:flex-row items-center justify-end gap-4 pt-4 border-t border-slate-200">
-          <button
-            type="button"
-            onClick={() => {
+        {/* Action Button with Engine Start / Stop Styling & Steering Wheel F1 Shift Lights */}
+        <div className="flex flex-col md:flex-row items-center justify-between gap-5 pt-6 border-t border-slate-200">
+          <F1ShiftLights isRevving={isLoading} intensity={isLoading ? 10 : 5} showLabels />
+
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto justify-end">
+            <button
+              type="button"
+              onClick={() => {
               setBrand('Maruti');
               setModel('Swift Dzire');
               setYear('2018');
@@ -1398,7 +1413,8 @@ export const AnalyzePage: React.FC = () => {
             )}
           </button>
         </div>
-      </form>
-    </div>
+      </div>
+    </form>
+  </div>
   );
 };

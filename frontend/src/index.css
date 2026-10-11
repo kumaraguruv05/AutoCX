@@ -95,3 +95,58 @@
   animation: spin 6s linear infinite;
 }
 
+/* Digital Cockpit Needle Sweep (Startup & Idle Settling) */
+@keyframes tachometer-sweep {
+  0% {
+    transform: rotate(-130deg);
+  }
+  35% {
+    transform: rotate(118deg);
+  }
+  50% {
+    transform: rotate(122deg);
+  }
+  70% {
+    transform: rotate(95deg);
+  }
+  100% {
+    transform: rotate(var(--target-angle, -30deg));
+  }
+}
+
+.animate-needle-sweep {
+  animation: tachometer-sweep 2.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  transform-origin: 50% 50%;
+}
+
+/* F1 Sequential Shift-Light Flashing */
+@keyframes f1-redline-flash {
+  0%, 100% {
+    opacity: 1;
+    filter: drop-shadow(0 0 10px rgba(168, 85, 247, 0.9));
+  }
+  50% {
+    opacity: 0.15;
+    filter: none;
+  }
+}
+
+.animate-f1-redline {
+  animation: f1-redline-flash 0.22s infinite ease-in-out;
+}
+
+/* Motorsport Blueprint Grid & Heatmap Pulse */
+@keyframes chassis-grid-pulse {
+  0%, 100% {
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.4));
+  }
+}
+
+.animate-chassis-pulse {
+  animation: chassis-grid-pulse 3s infinite ease-in-out;
+}
+

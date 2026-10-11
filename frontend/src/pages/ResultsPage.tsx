@@ -22,6 +22,9 @@ import {
 } from '@/types/api';
 import { formatINR, formatIndianDenomination, formatPercent } from '@/utils/formatters';
 import { storageService } from '@/services/storage';
+import { CockpitGauges } from '@/components/cockpit/CockpitGauges';
+import { DynoTelemetryCurve } from '@/components/cockpit/DynoTelemetryCurve';
+import { EVSkateboardChassis } from '@/components/cockpit/EVSkateboardChassis';
 
 interface LocationState {
   analysisId?: string;
@@ -147,6 +150,18 @@ export const ResultsPage: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Concept 1: Digital Cockpit Instrument Cluster & Dynamic Tachometer Sweeps */}
+      <CockpitGauges
+        retentionPercent={
+          dep
+            ? Math.max(0, 100 - dep.depreciation_percentage)
+            : Math.max(25, Math.min(95, 100 - carResult.vehicle_summary.vehicle_age * 7.5))
+        }
+        estimatedPrice={carResult.estimated_resale_price}
+        fuel={carInput.fuel}
+        vehicleAge={carResult.vehicle_summary.vehicle_age}
+      />
 
       {/* Vehicle Summary Bar */}
       <div className="p-6 sm:p-8 rounded-2xl bg-white border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xs">
@@ -329,6 +344,15 @@ export const ResultsPage: React.FC = () => {
               </p>
             </div>
           )}
+
+          {/* Concept 2: MoTeC Chassis Dyno Telemetry Retention Curve */}
+          <DynoTelemetryCurve
+            originalPrice={dep?.original_price || (carResult.estimated_resale_price * 1.45)}
+            currentResalePrice={carResult.estimated_resale_price}
+            vehicleAge={carResult.vehicle_summary.vehicle_age}
+            fuel={carInput.fuel}
+            segment={carResult.vehicle_summary.segment}
+          />
 
           {/* Battery Health Valuation Impact Callout */}
           {carResult.battery_valuation_impact && (
@@ -537,6 +561,15 @@ export const ResultsPage: React.FC = () => {
                     </div>
                   </div>
                 </div>
+
+                {/* Concept 2: EV Skateboard Chassis Wireframe Blueprint & 16-Module Thermal Heatmap */}
+                <EVSkateboardChassis
+                  sohPercent={batteryResult.predicted_soh_percent}
+                  cycleCount={batteryResult.supporting_measurements.cycle_count}
+                  voltageSpread={batteryResult.supporting_measurements.voltage_spread_v}
+                  tempPeak={batteryResult.supporting_measurements.peak_temperature_c}
+                  ambientTemp={batteryResult.supporting_measurements.ambient_temp_c}
+                />
 
                 {/* Battery Health Valuation Financial Delta */}
                 {carResult.battery_valuation_impact && (
