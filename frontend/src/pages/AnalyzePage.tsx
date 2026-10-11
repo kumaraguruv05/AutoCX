@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Car,
+  CarFront,
   BatteryCharging,
   Info,
   Sparkles,
@@ -11,7 +12,15 @@ import {
   Sliders,
   DollarSign,
   ArrowRight,
-  RotateCcw
+  RotateCcw,
+  Gauge,
+  Fuel,
+  Cog,
+  KeyRound,
+  Disc3,
+  Calendar,
+  Zap,
+  Activity
 } from 'lucide-react';
 import { apiClient } from '@/services/api';
 import { storageService } from '@/services/storage';
@@ -103,8 +112,14 @@ export const AnalyzePage: React.FC = () => {
   // Car form fields
   const [brand, setBrand] = useState<string>(initialCar?.brand || 'Maruti');
   const [model, setModel] = useState<string>(initialCar?.model || 'Swift Dzire');
-  const [year, setYear] = useState<number>(initialCar?.year || 2018);
-  const [kmDriven, setKmDriven] = useState<number>(initialCar?.km_driven || 45000);
+  const [year, setYear] = useState<string>(
+    initialCar?.year ? String(initialCar.year) : '2018'
+  );
+  const [kmDriven, setKmDriven] = useState<string>(
+    initialCar?.km_driven !== undefined && initialCar?.km_driven !== null
+      ? String(initialCar.km_driven)
+      : '45000'
+  );
   const [fuel, setFuel] = useState<string>(initialCar?.fuel || 'Petrol');
   const [transmission, setTransmission] = useState<string>(initialCar?.transmission || 'Manual');
   const [sellerType, setSellerType] = useState<string>(initialCar?.seller_type || 'Individual');
@@ -128,9 +143,9 @@ export const AnalyzePage: React.FC = () => {
       ? String(initialCar.mileage_kmpl)
       : '21.5'
   );
-  // Original purchase price is strictly optional and starts blank unless user previously provided it
+  // Original purchase price starts blank unless explicitly entered or previously saved with positive amount
   const [originalPrice, setOriginalPrice] = useState<string>(
-    initialCar?.original_price !== undefined && initialCar?.original_price !== null
+    initialCar?.original_price !== undefined && initialCar?.original_price !== null && Number(initialCar.original_price) > 0
       ? String(initialCar.original_price)
       : ''
   );
@@ -172,6 +187,13 @@ export const AnalyzePage: React.FC = () => {
         }
         if (catalog) {
           setCarCatalog(catalog);
+          // If fresh form without initial edit state, auto-populate model's launch year
+          if (!initialCar) {
+            const activeProfile = catalog[`${brand}::${model}`];
+            if (activeProfile?.year_min) {
+              setYear(String(activeProfile.year_min));
+            }
+          }
         }
       })
       .catch((err) => {
@@ -185,17 +207,34 @@ export const AnalyzePage: React.FC = () => {
       const models = brandModelsMap[brand];
       setAvailableModels(models);
       if (!models.includes(model)) {
-        setModel(models[0]);
+        const nextModel = models[0];
+        setModel(nextModel);
+        const profile = carCatalog[`${brand}::${nextModel}`];
+        if (profile?.year_min) {
+          setYear(String(profile.year_min));
+        }
       }
     } else {
       setAvailableModels([]);
     }
   }, [brand, brandModelsMap]);
 
+  // Model change handler: updates model AND auto-fills launch year
+  const handleModelChange = (newModel: string) => {
+    setModel(newModel);
+    const profile = carCatalog[`${brand}::${newModel}`];
+    if (profile?.year_min) {
+      setYear(String(profile.year_min));
+    }
+  };
+
   // Current active vehicle profile from catalog
+  const CURRENT_CALENDAR_YEAR = 2026;
   const currentProfile = carCatalog[`${brand}::${model}`];
   const yearMin = currentProfile?.year_min || 1990;
-  const yearMax = currentProfile?.year_max || new Date().getFullYear();
+  const yearMax = currentProfile?.year_max || CURRENT_CALENDAR_YEAR;
+  const parsedYear = year ? parseInt(year, 10) : 0;
+  const computedVehicleAge = parsedYear > 0 ? Math.max(0, CURRENT_CALENDAR_YEAR - parsedYear) : 0;
   const validFuels = currentProfile?.valid_fuels && currentProfile.valid_fuels.length > 0
     ? currentProfile.valid_fuels
     : ['Petrol', 'Diesel', 'CNG', 'LPG', 'Electric', 'Hybrid'];
@@ -221,11 +260,12 @@ export const AnalyzePage: React.FC = () => {
   // Sync profile specs and constraints when model changes
   useEffect(() => {
     if (currentProfile) {
-      // 1. Constrain year
-      if (year > currentProfile.year_max) {
-        setYear(currentProfile.year_max);
-      } else if (year < currentProfile.year_min) {
-        setYear(currentProfile.year_min);
+      // 1. Constrain year if out of bounds (only when year is non-empty)
+      const numYear = year ? parseInt(year, 10) : 0;
+      if (numYear > currentProfile.year_max) {
+        setYear(String(currentProfile.year_max));
+      } else if (numYear > 0 && numYear < currentProfile.year_min) {
+        setYear(String(currentProfile.year_min));
       }
       // 2. Constrain fuel
       if (currentProfile.valid_fuels && currentProfile.valid_fuels.length > 0) {
@@ -271,8 +311,8 @@ export const AnalyzePage: React.FC = () => {
       const carPayload: CarPredictionRequest = {
         brand: brand.trim(),
         model: model.trim(),
-        year: Number(year),
-        km_driven: Number(kmDriven),
+        year: year ? parseInt(year, 10) : (currentProfile?.year_min || 2018),
+        km_driven: kmDriven ? parseFloat(kmDriven) : 45000,
         fuel: fuel.trim(),
         seller_type: sellerType,
         transmission: transmission,
@@ -281,7 +321,7 @@ export const AnalyzePage: React.FC = () => {
         mileage_kmpl: mileageKmpl ? parseFloat(mileageKmpl) : null,
         engine_cc: fuel === 'Electric' ? 0 : engineCc ? parseFloat(engineCc) : null,
         max_power_bhp: maxPowerBhp ? parseFloat(maxPowerBhp) : null,
-        original_price: originalPrice ? parseFloat(originalPrice) : null,
+        original_price: originalPrice && parseFloat(originalPrice) > 0 ? parseFloat(originalPrice) : null,
       };
 
       // Execute Car Resale Prediction
@@ -366,19 +406,27 @@ export const AnalyzePage: React.FC = () => {
         <div className="p-6 sm:p-8 rounded-2xl bg-white border border-slate-200 space-y-6 shadow-sm">
           <div className="flex items-center justify-between pb-4 border-b border-slate-200">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center text-white font-bold text-sm">
-                1
+              <div className="w-9 h-9 rounded-xl bg-black flex items-center justify-center text-white shadow-sm">
+                <CarFront className="w-5 h-5 text-white" />
               </div>
-              <div className="flex items-center gap-2.5">
-                <h2 className="text-lg font-bold text-slate-950">Vehicle Specifications</h2>
-                {currentProfile?.segment && (
-                  <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-800 border border-slate-300 font-semibold">
-                    {currentProfile.segment}
-                  </span>
-                )}
+              <div>
+                <div className="flex items-center gap-2.5">
+                  <h2 className="text-lg font-bold text-slate-950">Vehicle Specifications</h2>
+                  {currentProfile?.segment && (
+                    <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-800 border border-slate-300 font-semibold tracking-wide uppercase">
+                      {currentProfile.segment}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-500 font-mono">
+                  AUTOCX POWERTRAIN & CHASSIS TELEMETRICS
+                </p>
               </div>
             </div>
-            <span className="text-xs font-mono text-slate-500">Required inputs</span>
+            <div className="hidden sm:flex items-center gap-2 text-xs font-mono text-slate-500">
+              <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>Catalog Active</span>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -408,7 +456,7 @@ export const AnalyzePage: React.FC = () => {
               {availableModels.length > 0 ? (
                 <select
                   value={model}
-                  onChange={(e) => setModel(e.target.value)}
+                  onChange={(e) => handleModelChange(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3.5 py-2.5 text-slate-900 text-sm focus:outline-none focus:bg-white focus:border-black focus:ring-1 focus:ring-black transition-all"
                 >
                   {availableModels.map((m) => (
@@ -421,7 +469,7 @@ export const AnalyzePage: React.FC = () => {
                 <input
                   type="text"
                   value={model}
-                  onChange={(e) => setModel(e.target.value)}
+                  onChange={(e) => handleModelChange(e.target.value)}
                   placeholder="e.g. Swift, Creta, Nexon EV"
                   className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3.5 py-2.5 text-slate-900 text-sm focus:outline-none focus:bg-white focus:border-black focus:ring-1 focus:ring-black transition-all"
                   required
@@ -429,60 +477,152 @@ export const AnalyzePage: React.FC = () => {
               )}
             </div>
 
-            {/* Manufacturing Year */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
-                  Manufacturing Year
-                </label>
-                {currentProfile && currentProfile.year_max < 2024 && (
-                  <span className="text-[10px] text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded font-mono font-semibold">
-                    Discontinued in {currentProfile.year_max}
-                  </span>
-                )}
+            {/* Cockpit Telemetry Chip Strip */}
+            <div className="sm:col-span-2 grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono">
+              <div className="space-y-0.5">
+                <span className="text-[10px] text-slate-500 block uppercase tracking-wider">Engine Spec</span>
+                <span className="text-slate-900 font-semibold flex items-center gap-1.5">
+                  <Activity className="w-3.5 h-3.5 text-slate-600" />
+                  {fuel === 'Electric' ? 'EV Traction Motor' : `${engineCc || '—'} cc`}
+                </span>
               </div>
-              <input
-                type="number"
-                min={yearMin}
-                max={yearMax}
-                value={year}
-                onChange={(e) => setYear(Number(e.target.value))}
-                className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3.5 py-2.5 text-slate-900 text-sm focus:outline-none focus:bg-white focus:border-black focus:ring-1 focus:ring-black transition-all font-mono"
-                required
-              />
-              <p className="text-[11px] text-slate-500 font-mono flex items-center justify-between">
-                <span>Production span: {yearMin} – {yearMax}</span>
-                <span>Computed Age: {Math.max(0, 2024 - year)} years</span>
-              </p>
+              <div className="space-y-0.5">
+                <span className="text-[10px] text-slate-500 block uppercase tracking-wider">Peak Power</span>
+                <span className="text-slate-900 font-semibold flex items-center gap-1.5">
+                  <Gauge className="w-3.5 h-3.5 text-slate-600" />
+                  {maxPowerBhp ? `${maxPowerBhp} bhp` : '—'}
+                </span>
+              </div>
+              <div className="space-y-0.5">
+                <span className="text-[10px] text-slate-500 block uppercase tracking-wider">Rated Efficiency</span>
+                <span className="text-slate-900 font-semibold flex items-center gap-1.5">
+                  <Fuel className="w-3.5 h-3.5 text-slate-600" />
+                  {mileageKmpl ? `${mileageKmpl} km/l` : '—'}
+                </span>
+              </div>
+              <div className="space-y-0.5">
+                <span className="text-[10px] text-slate-500 block uppercase tracking-wider">Cabin Seating</span>
+                <span className="text-slate-900 font-semibold flex items-center gap-1.5">
+                  <KeyRound className="w-3.5 h-3.5 text-slate-600" />
+                  {seats} Seater
+                </span>
+              </div>
             </div>
 
-            {/* Kilometers Driven */}
+            {/* Manufacturing Year with Production Span Banner DIRECTLY ABOVE */}
             <div className="space-y-2">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
-                Kilometres Driven (Odometer)
-              </label>
+              {/* Production Run Display Card - DIRECTLY ABOVE THE YEAR INPUT */}
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/90 shadow-2xs space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-semibold text-slate-800 flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-slate-600" />
+                    <span>Production Lifecycle</span>
+                  </span>
+                  {currentProfile && currentProfile.year_max < CURRENT_CALENDAR_YEAR ? (
+                    <span className="text-[10px] text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full font-mono font-semibold flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                      Discontinued ({currentProfile.year_max})
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full font-mono font-semibold flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      Active Generation
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center justify-between text-xs font-mono">
+                  <span className="text-slate-600">
+                    Produced from <strong className="text-slate-950 font-bold">{yearMin}</strong> to{' '}
+                    <strong className="text-slate-950 font-bold">{yearMax >= 2024 ? 'Present' : yearMax}</strong>
+                  </span>
+                  <span className="text-[11px] text-slate-500">
+                    First Launch: <strong className="text-black font-semibold">{yearMin}</strong>
+                  </span>
+                </div>
+              </div>
+
+              {/* Manufacturing Year Input Box */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-slate-900" />
+                    <span>Manufacturing Year</span>
+                  </label>
+                  <span className="text-[11px] font-mono text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded">
+                    Computed Age: <strong className="text-slate-900">{computedVehicleAge} {computedVehicleAge === 1 ? 'year' : 'years'} old</strong> (2026)
+                  </span>
+                </div>
+                <input
+                  type="number"
+                  min={yearMin}
+                  max={yearMax}
+                  value={year}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const cleaned = val === '' ? '' : val.replace(/^0+(?=\d)/, '');
+                    setYear(cleaned);
+                  }}
+                  placeholder={String(yearMin)}
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3.5 py-2.5 text-slate-900 text-sm focus:outline-none focus:bg-white focus:border-black focus:ring-1 focus:ring-black transition-all font-mono font-semibold"
+                  required
+                />
+                <p className="text-[11px] text-slate-500 font-mono flex items-center justify-between">
+                  <span>Factory build year ({yearMin} – {yearMax})</span>
+                  {parsedYear > 0 && (parsedYear < yearMin || parsedYear > yearMax) && (
+                    <span className="text-rose-600 font-semibold">⚠️ Out of catalog production range</span>
+                  )}
+                </p>
+              </div>
+            </div>
+
+            {/* Kilometers Driven (Odometer) with Cockpit Bezel */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                  <Gauge className="w-3.5 h-3.5 text-slate-900" />
+                  <span>Kilometres Driven</span>
+                </label>
+                {/* LCD Odometer Readout */}
+                <div className="px-2.5 py-1 rounded bg-neutral-900 border border-neutral-700 text-emerald-400 font-mono text-xs font-bold tracking-widest shadow-inner flex items-center gap-1">
+                  <span className="text-[9px] text-neutral-400 uppercase tracking-tight">ODO</span>
+                  <span>{kmDriven ? Number(kmDriven).toLocaleString() : '—'}</span>
+                  <span className="text-[9px] text-neutral-400">KM</span>
+                </div>
+              </div>
               <input
                 type="number"
                 min="0"
                 max="1000000"
                 step="500"
                 value={kmDriven}
-                onChange={(e) => setKmDriven(Number(e.target.value))}
-                className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3.5 py-2.5 text-slate-900 text-sm focus:outline-none focus:bg-white focus:border-black focus:ring-1 focus:ring-black transition-all font-mono"
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const cleaned = val === '' ? '' : val.replace(/^0+(?=\d)/, '');
+                  setKmDriven(cleaned);
+                }}
+                placeholder="45000"
+                className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3.5 py-2.5 text-slate-900 text-sm focus:outline-none focus:bg-white focus:border-black focus:ring-1 focus:ring-black transition-all font-mono font-semibold"
                 required
               />
-              <p className="text-[11px] text-slate-500 font-mono">
-                {kmDriven.toLocaleString()} km
+              <p className="text-[11px] text-slate-500 font-mono flex items-center justify-between">
+                <span>Total odometer accumulation</span>
+                <span className="text-slate-600 font-semibold">
+                  {kmDriven && parsedYear > 0 ? `~${Math.round(Number(kmDriven) / Math.max(1, computedVehicleAge)).toLocaleString()} km / yr` : ''}
+                </span>
               </p>
             </div>
 
             {/* Fuel Type */}
             <div className="space-y-2">
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 flex items-center justify-between">
-                <span>Fuel Type</span>
+                <span className="flex items-center gap-1.5">
+                  <Fuel className="w-3.5 h-3.5 text-slate-900" />
+                  <span>Fuel Powertrain</span>
+                </span>
                 {fuel === 'Electric' && (
-                  <span className="text-[10px] text-cyan-700 bg-cyan-50 border border-cyan-200 px-2 py-0.5 rounded font-mono font-medium animate-pulse">
-                    ⚡ EV Mode Active
+                  <span className="text-[10px] text-cyan-700 bg-cyan-50 border border-cyan-200 px-2 py-0.5 rounded font-mono font-medium animate-pulse flex items-center gap-1">
+                    <Zap className="w-3 h-3 text-cyan-600" />
+                    <span>EV Mode Active</span>
                   </span>
                 )}
               </label>
@@ -501,13 +641,30 @@ export const AnalyzePage: React.FC = () => {
                   </option>
                 ))}
               </select>
+              <div className="flex items-center justify-between text-[11px] text-slate-500 font-mono">
+                <span>
+                  {fuel === 'Petrol' && '⛽ Unleaded 91/95 RON • Spark Ignition'}
+                  {fuel === 'Diesel' && '⛽ Ultra-Low Sulfur Diesel • BS-VI'}
+                  {fuel === 'Electric' && '⚡ High-Voltage DC Battery Pack'}
+                  {fuel === 'CNG' && '🌿 200 Bar Compressed Natural Gas'}
+                  {fuel === 'LPG' && '🔥 Auto-LPG Dual Fuel'}
+                  {fuel === 'Hybrid' && '🔋 Self-Charging HEV Powertrain'}
+                </span>
+              </div>
             </div>
 
             {/* Transmission */}
             <div className="space-y-2">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
-                Transmission
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                  <Cog className="w-3.5 h-3.5 text-slate-900" />
+                  <span>Transmission</span>
+                </label>
+                {/* Automotive Shift Pattern Badge */}
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-700 font-semibold tracking-wider">
+                  {transmission === 'Automatic' ? '[ P R N D S ]' : '[ 1 3 5 / 2 4 R ]'}
+                </span>
+              </div>
               <select
                 value={transmission}
                 onChange={(e) => setTransmission(e.target.value)}
@@ -519,12 +676,16 @@ export const AnalyzePage: React.FC = () => {
                   </option>
                 ))}
               </select>
+              <p className="text-[11px] text-slate-500 font-mono">
+                {transmission === 'Automatic' ? 'Hydraulic Torque-Converter / DCT / CVT' : 'Synchromesh Manual Gearbox'}
+              </p>
             </div>
 
             {/* Ownership */}
             <div className="space-y-2">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
-                Ownership History
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                <KeyRound className="w-3.5 h-3.5 text-slate-900" />
+                <span>Ownership History</span>
               </label>
               <select
                 value={owner}
@@ -540,8 +701,9 @@ export const AnalyzePage: React.FC = () => {
 
             {/* Seller Type */}
             <div className="space-y-2">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
-                Seller Type
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                <Disc3 className="w-3.5 h-3.5 text-slate-900" />
+                <span>Seller Type</span>
               </label>
               <select
                 value={sellerType}
@@ -588,7 +750,11 @@ export const AnalyzePage: React.FC = () => {
                     : "e.g. 850000 (leave blank to predict resale value only)"
                 }
                 value={originalPrice}
-                onChange={(e) => setOriginalPrice(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const cleaned = val === '' ? '' : val.replace(/^0+(?=\d)/, '');
+                  setOriginalPrice(cleaned);
+                }}
                 className="w-full bg-slate-50 border border-slate-300 rounded-lg pl-8 pr-4 py-2.5 text-slate-900 text-sm focus:outline-none focus:bg-white focus:border-black focus:ring-1 focus:ring-black transition-all font-mono"
               />
             </div>
@@ -923,8 +1089,8 @@ export const AnalyzePage: React.FC = () => {
             onClick={() => {
               setBrand('Maruti');
               setModel('Swift Dzire');
-              setYear(2018);
-              setKmDriven(45000);
+              setYear('2018');
+              setKmDriven('45000');
               setFuel('Petrol');
               setTransmission('Manual');
               setSellerType('Individual');
@@ -941,7 +1107,7 @@ export const AnalyzePage: React.FC = () => {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-black hover:bg-neutral-800 text-white font-bold text-sm shadow-lg shadow-black/20 hover:shadow-2xl hover:scale-[1.03] active:scale-[0.98] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group cursor-pointer"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-xl bg-black hover:bg-neutral-800 text-white font-bold text-sm shadow-lg shadow-black/20 hover:shadow-2xl hover:scale-[1.03] active:scale-[0.98] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group cursor-pointer"
           >
             {isLoading ? (
               <>
@@ -950,6 +1116,7 @@ export const AnalyzePage: React.FC = () => {
               </>
             ) : (
               <>
+                <Gauge className="w-4 h-4 text-emerald-400 group-hover:rotate-45 transition-transform duration-300" />
                 <span>Compute Valuation & SOH</span>
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
               </>

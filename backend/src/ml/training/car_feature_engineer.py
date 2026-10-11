@@ -105,7 +105,7 @@ class CarFeatureEngineer(BaseEstimator, TransformerMixin):
     def transform(self, X):
         X = X.copy()
         if "vehicle_age" not in X.columns and "year" in X.columns:
-            X["vehicle_age"] = 2024 - pd.to_numeric(X["year"], errors="coerce").fillna(2018)
+            X["vehicle_age"] = 2026 - pd.to_numeric(X["year"], errors="coerce").fillna(2018)
             
         brands = X["brand"].tolist() if "brand" in X.columns else ["Maruti"] * len(X)
         models = X["model"].tolist() if "model" in X.columns else ["Swift"] * len(X)

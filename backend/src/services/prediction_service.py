@@ -115,7 +115,9 @@ class PredictionService:
                 detail="Car Resale Model artifact is not available. Ensure models have been trained."
             )
             
-        vehicle_age = max(0, 2024 - request.year)
+        # Dynamic current-year reference (2026) for accurate vehicle aging
+        current_calendar_year = 2026
+        vehicle_age = max(0, current_calendar_year - request.year)
         brand = request.brand.strip().title()
         model_name = request.model.strip()
         
