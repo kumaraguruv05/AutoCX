@@ -188,3 +188,65 @@ def test_car_catalog_endpoint(client):
     assert m800["segment"] == "Micro / Entry Hatchback"
     assert "Ford::Endeavour 3.2" in catalog
 
+def test_ev_valuation_battery_soh_premium_and_penalty(client):
+    # Same 2021 Tata Nexon EV evaluated with healthy vs degraded battery
+    base_payload = {
+        "brand": "Tata",
+        "model": "Nexon EV",
+        "year": 2021,
+        "km_driven": 35000,
+        "fuel": "Electric",
+        "transmission": "Automatic",
+        "owner": "First Owner",
+        "seats": 5,
+        "original_price": 1600000.0
+    }
+    
+    # 1. Healthy / Near-new Battery (94% SOH)
+    payload_healthy = {**base_payload, "battery_soh": 94.0}
+    res_healthy = client.post("/api/predict/car-value", json=payload_healthy)
+    assert res_healthy.status_code == 200
+    data_healthy = res_healthy.json()
+    
+    impact_healthy = data_healthy["battery_valuation_impact"]
+    assert impact_healthy is not None
+    assert impact_healthy["battery_soh"] == 94.0
+    assert impact_healthy["condition_category"] == "Excellent"
+    assert impact_healthy["adjustment_inr"] > 0
+    assert impact_healthy["adjustment_percent"] > 0
+    
+    # 2. Severely Degraded Battery (62% SOH - End of Life)
+    payload_degraded = {**base_payload, "battery_soh": 62.0}
+    res_degraded = client.post("/api/predict/car-value", json=payload_degraded)
+    assert res_degraded.status_code == 200
+    data_degraded = res_degraded.json()
+    
+    impact_degraded = data_degraded["battery_valuation_impact"]
+    assert impact_degraded is not None
+    assert impact_degraded["battery_soh"] == 62.0
+    assert "Degraded" in impact_degraded["condition_category"]
+    assert impact_degraded["adjustment_inr"] < 0
+    assert impact_degraded["adjustment_percent"] < -20.0
+    
+    # Resale with healthy pack must be significantly higher than degraded pack
+    # (Reflects ~INR 1.8L to INR 3.5L replacement pack cost in India)
+    price_diff = data_healthy["estimated_resale_price"] - data_degraded["estimated_resale_price"]
+    assert price_diff >= 180000.0, f"Expected price difference >= 1.8L, got {price_diff}"
+
+def test_ice_vehicle_unaffected_by_battery_soh(client):
+    # Petrol vehicle should ignore battery_soh completely
+    payload = {
+        "brand": "Maruti",
+        "model": "Swift",
+        "year": 2019,
+        "km_driven": 40000,
+        "fuel": "Petrol",
+        "transmission": "Manual",
+        "battery_soh": 95.0
+    }
+    res = client.post("/api/predict/car-value", json=payload)
+    assert res.status_code == 200
+    data = res.json()
+    assert data["battery_valuation_impact"] is None
+    assert data["vehicle_summary"]["battery_soh"] is None
+

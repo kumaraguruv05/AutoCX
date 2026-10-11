@@ -12,6 +12,7 @@ export interface CarPredictionRequest {
   max_power_bhp?: number | null;
   seats?: number | null;
   original_price?: number | null;
+  battery_soh?: number | null;
 }
 
 export interface DepreciationInfo {
@@ -21,10 +22,20 @@ export interface DepreciationInfo {
   is_appreciation: boolean;
 }
 
+export interface BatteryValuationImpact {
+  battery_soh: number;
+  condition_category: string;
+  adjustment_inr: number;
+  adjustment_percent: number;
+  pack_replacement_risk: string;
+  explanation: string;
+}
+
 export interface CarPredictionResponse {
   estimated_resale_price: number;
   currency: string;
   depreciation: DepreciationInfo | null;
+  battery_valuation_impact?: BatteryValuationImpact | null;
   vehicle_summary: {
     brand: string;
     model: string;
@@ -37,6 +48,7 @@ export interface CarPredictionResponse {
     owner: string;
     engine_cc?: number;
     max_power_bhp?: number;
+    battery_soh?: number | null;
     guardrails_applied?: string[];
   };
   model_version: string;

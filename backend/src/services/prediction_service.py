@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from fastapi import HTTPException
-from src.schemas.car import CarPredictionRequest, CarPredictionResponse, DepreciationInfo
+from src.schemas.car import CarPredictionRequest, CarPredictionResponse, DepreciationInfo, BatteryValuationImpact
 from src.schemas.battery import BatteryPredictionRequest, BatteryPredictionResponse
 from src.services.model_loader import registry
 
@@ -268,7 +268,12 @@ class PredictionService:
             # EV-specific retention adjustment
             if request.fuel.lower() == "electric":
                 base_ret *= 0.85 # Secondary EV market depreciation discount
-                if request.km_driven > 70000:
+                if request.battery_soh is not None:
+                    if request.battery_soh < 70.0:
+                        base_ret *= 0.72 # Steep cap reduction for battery EOL
+                    elif request.battery_soh >= 90.0:
+                        base_ret *= 1.05 # Headroom for pristine pack
+                elif request.km_driven > 70000:
                     base_ret *= max(0.78, 1.0 - (request.km_driven - 70000) / 150000.0 * 0.25)
                 
             # Odometer penalty beyond 100,000 km
@@ -308,6 +313,72 @@ class PredictionService:
                     predicted_price = 1850000.0
                     guardrails_applied.append("Premium SUV Floor: Protected against severe undervaluation of high-demand D2 4x4 platform.")
                     
+        # -------------------------------------------------------------
+        # HIGH-VOLTAGE TRACTION BATTERY CONDITION MODULATION (EV ONLY)
+        # -------------------------------------------------------------
+        battery_valuation_impact = None
+        if request.fuel.lower() == "electric" and request.battery_soh is not None:
+            soh = float(np.clip(request.battery_soh, 10.0, 100.0))
+            
+            if soh >= 90.0:
+                condition_category = "Excellent"
+                pack_risk = "Minimal Risk (Battery in Peak Operational Health)"
+                # Premium: +3.0% at 90% SOH up to +7.0% at 100% SOH
+                adj_pct = round(min(8.0, 3.0 + (soh - 90.0) * 0.4), 2)
+                adj_inr = round(predicted_price * (adj_pct / 100.0), 2)
+                explanation = (
+                    f"Traction battery is in exceptional condition ({soh:.1f}% SOH). "
+                    f"Commands a +{adj_pct:.1f}% (+INR {abs(adj_inr):,.0f}) valuation premium due to maximum range retention, "
+                    f"healthy cell electrochemical balance, and zero imminent pack replacement risk."
+                )
+            elif soh >= 80.0:
+                condition_category = "Good"
+                pack_risk = "Low Risk (Normal Operational Degradation)"
+                # Baseline market expectation (85% is neutral, 80% is -2.5%, 89% is +2.0%)
+                adj_pct = round((soh - 85.0) * 0.5, 2)
+                adj_inr = round(predicted_price * (adj_pct / 100.0), 2)
+                sign_str = f"+{adj_pct:.1f}% (+INR {adj_inr:,.0f})" if adj_pct >= 0 else f"{adj_pct:.1f}% (-INR {abs(adj_inr):,.0f})"
+                explanation = (
+                    f"Traction battery shows normal operational wear ({soh:.1f}% SOH). "
+                    f"Resale value adjusted by {sign_str} aligned with expected fleet capacity retention."
+                )
+            elif soh >= 70.0:
+                condition_category = "Fair"
+                pack_risk = "Moderate to High Risk (Noticeable Capacity Loss)"
+                # Noticeable degradation: -7.5% at 79.9% down to -17.5% at 70%
+                adj_pct = round(-7.5 - ((80.0 - soh) / 10.0) * 10.0, 2)
+                adj_inr = round(predicted_price * (adj_pct / 100.0), 2)
+                explanation = (
+                    f"Traction battery has experienced noticeable capacity degradation ({soh:.1f}% SOH). "
+                    f"Incurs a {adj_pct:.1f}% (-INR {abs(adj_inr):,.0f}) penalty due to diminished driving range (~25% loss) "
+                    f"and approaching factory warranty expiration threshold."
+                )
+            else: # soh < 70.0
+                condition_category = "Degraded (End of Life)"
+                pack_risk = "Critical Risk (Battery Pack Replacement Required)"
+                # Critical EOL: -22% at 69.9% down to -38% at 50%
+                adj_pct = round(max(-38.0, -22.0 - ((70.0 - soh) / 20.0) * 16.0), 2)
+                adj_inr = round(predicted_price * (adj_pct / 100.0), 2)
+                explanation = (
+                    f"Traction battery has crossed the critical 70% automotive End-of-Life (EOL) threshold ({soh:.1f}% SOH). "
+                    f"Cell impedance and thermal instability necessitate imminent pack replacement (estimated INR 4.5L - INR 6.5L in India). "
+                    f"Resale value discounted by {adj_pct:.1f}% (-INR {abs(adj_inr):,.0f})."
+                )
+
+            predicted_price = max(40000.0, predicted_price + adj_inr)
+            
+            battery_valuation_impact = BatteryValuationImpact(
+                battery_soh=soh,
+                condition_category=condition_category,
+                adjustment_inr=adj_inr,
+                adjustment_percent=adj_pct,
+                pack_replacement_risk=pack_risk,
+                explanation=explanation
+            )
+            guardrails_applied.append(
+                f"Battery SOH Price Adjustment: {adj_pct:+.1f}% ({adj_inr:+,.0f} INR) based on {soh:.1f}% SOH ({condition_category})."
+            )
+
         # Guardrail D: Running Scrap/Utility Minimum Floor
         if predicted_price < 25000.0:
             predicted_price = 25000.0
@@ -333,6 +404,7 @@ class PredictionService:
             estimated_resale_price=predicted_price,
             currency="INR",
             depreciation=depreciation_info,
+            battery_valuation_impact=battery_valuation_impact,
             vehicle_summary={
                 "brand": brand,
                 "model": model_name,
@@ -345,6 +417,7 @@ class PredictionService:
                 "owner": request.owner,
                 "engine_cc": engine_cc,
                 "max_power_bhp": max_power_bhp,
+                "battery_soh": request.battery_soh if request.fuel.lower() == "electric" else None,
                 "guardrails_applied": guardrails_applied
             },
             model_version=metadata.get("version", "2.0.0"),

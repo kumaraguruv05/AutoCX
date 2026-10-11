@@ -15,6 +15,7 @@ class CarPredictionRequest(BaseModel):
     max_power_bhp: Optional[float] = Field(default=None, ge=0.0, le=1500.0, description="Max power in bhp")
     seats: Optional[int] = Field(default=5, ge=2, le=14, description="Seating capacity")
     original_price: Optional[float] = Field(default=None, ge=10000, le=100000000, description="Optional original purchase price in INR")
+    battery_soh: Optional[float] = Field(default=None, ge=10.0, le=100.0, description="Optional EV traction battery State of Health (SOH) percentage (10% to 100%)")
 
 class DepreciationInfo(BaseModel):
     original_price: float
@@ -22,10 +23,19 @@ class DepreciationInfo(BaseModel):
     depreciation_percentage: float
     is_appreciation: bool
 
+class BatteryValuationImpact(BaseModel):
+    battery_soh: float = Field(..., description="Evaluated battery State of Health percentage")
+    condition_category: str = Field(..., description="Condition: Excellent, Good, Fair, Degraded (End of Life)")
+    adjustment_inr: float = Field(..., description="Monetary premium (+) or deduction (-) in INR")
+    adjustment_percent: float = Field(..., description="Percentage shift applied to base vehicle price")
+    pack_replacement_risk: str = Field(..., description="Risk assessment of traction pack replacement")
+    explanation: str = Field(..., description="Automotive domain explanation of the valuation impact")
+
 class CarPredictionResponse(BaseModel):
     estimated_resale_price: float
     currency: str = "INR"
     depreciation: Optional[DepreciationInfo] = None
+    battery_valuation_impact: Optional[BatteryValuationImpact] = None
     vehicle_summary: dict
     model_version: str
     algorithm: str

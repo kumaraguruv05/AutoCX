@@ -409,29 +409,10 @@ export const AnalyzePage: React.FC = () => {
     setError(null);
 
     try {
-      // 1. Prepare Car Resale Payload
-      const carPayload: CarPredictionRequest = {
-        brand: brand.trim(),
-        model: model.trim(),
-        year: year ? parseInt(year, 10) : (currentProfile?.year_min || 2018),
-        km_driven: kmDriven ? parseFloat(kmDriven) : 45000,
-        fuel: fuel.trim(),
-        seller_type: sellerType,
-        transmission: transmission,
-        owner: owner,
-        seats: Number(seats),
-        mileage_kmpl: mileageKmpl ? parseFloat(mileageKmpl) : null,
-        engine_cc: fuel === 'Electric' ? 0 : engineCc ? parseFloat(engineCc) : null,
-        max_power_bhp: maxPowerBhp ? parseFloat(maxPowerBhp) : null,
-        original_price: originalPrice && parseFloat(originalPrice) > 0 ? parseFloat(originalPrice) : null,
-      };
-
-      // Execute Car Resale Prediction
-      const carResult: CarPredictionResponse = await apiClient.predictCarValue(carPayload);
-
-      // 2. Conditionally execute Battery Health prediction ONLY for Electric vehicles
+      // 1. Conditionally execute Battery Health prediction FIRST for Electric vehicles
       let batteryResult: BatteryPredictionResponse | null = null;
       let batteryPayload: BatteryPredictionRequest | null = null;
+      let evaluatedBatterySoh: number | null = null;
 
       if (fuel === 'Electric' && includeBatteryDiagnostic) {
         batteryPayload = {
@@ -449,7 +430,29 @@ export const AnalyzePage: React.FC = () => {
         };
 
         batteryResult = await apiClient.predictBatteryHealth(batteryPayload);
+        evaluatedBatterySoh = batteryResult.predicted_soh_percent;
       }
+
+      // 2. Prepare Car Resale Payload with battery_soh coupling
+      const carPayload: CarPredictionRequest = {
+        brand: brand.trim(),
+        model: model.trim(),
+        year: year ? parseInt(year, 10) : (currentProfile?.year_min || 2018),
+        km_driven: kmDriven ? parseFloat(kmDriven) : 45000,
+        fuel: fuel.trim(),
+        seller_type: sellerType,
+        transmission: transmission,
+        owner: owner,
+        seats: Number(seats),
+        mileage_kmpl: mileageKmpl ? parseFloat(mileageKmpl) : null,
+        engine_cc: fuel === 'Electric' ? 0 : engineCc ? parseFloat(engineCc) : null,
+        max_power_bhp: maxPowerBhp ? parseFloat(maxPowerBhp) : null,
+        original_price: originalPrice && parseFloat(originalPrice) > 0 ? parseFloat(originalPrice) : null,
+        battery_soh: fuel === 'Electric' ? evaluatedBatterySoh : null,
+      };
+
+      // 3. Execute Car Resale Prediction with empirical Battery SOH financial adjustment
+      const carResult: CarPredictionResponse = await apiClient.predictCarValue(carPayload);
 
       // Save to localStorage history
       const saved = storageService.saveAnalysis({
@@ -986,6 +989,17 @@ export const AnalyzePage: React.FC = () => {
 
             {includeBatteryDiagnostic ? (
               <div className="space-y-6">
+                {/* Active EV Resale Coupling Callout */}
+                <div className="p-3.5 rounded-xl bg-cyan-50 border border-cyan-300 text-xs text-slate-800 flex items-start gap-2.5">
+                  <Zap className="w-4 h-4 text-cyan-600 shrink-0 mt-0.5" />
+                  <div className="space-y-0.5 font-mono">
+                    <span className="font-bold text-slate-950 block">Active EV Battery Resale Valuation Coupling</span>
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      Battery State of Health directly modulates vehicle resale value. Pristine packs (&gt;90% SOH) secure a market retention bonus, while degraded packs (&lt;70% SOH) incur realistic pack-replacement deductions.
+                    </p>
+                  </div>
+                </div>
+
                 {/* AI Odometer & Range Telemetry Derivation Cockpit */}
                 <div className="p-5 rounded-2xl bg-white border border-cyan-200 shadow-sm space-y-5">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

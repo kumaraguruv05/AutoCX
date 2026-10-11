@@ -11,7 +11,8 @@ import {
   Gauge,
   Activity,
   Share2,
-  History
+  History,
+  Zap
 } from 'lucide-react';
 import {
   CarPredictionRequest,
@@ -173,6 +174,25 @@ export const ResultsPage: React.FC = () => {
                 </span>
               </>
             )}
+            {carResult.battery_valuation_impact && (
+              <>
+                <span className="text-xs text-slate-300">•</span>
+                <span className={`text-xs font-mono px-2.5 py-0.5 rounded-md font-semibold border flex items-center gap-1 ${
+                  carResult.battery_valuation_impact.adjustment_inr >= 0
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                    : carResult.battery_valuation_impact.adjustment_percent <= -20
+                    ? 'bg-rose-50 text-rose-800 border-rose-300'
+                    : 'bg-amber-50 text-amber-800 border-amber-300'
+                }`}>
+                  <Zap className="w-3 h-3" />
+                  <span>
+                    {carResult.battery_valuation_impact.battery_soh.toFixed(1)}% SOH (
+                    {carResult.battery_valuation_impact.adjustment_inr >= 0 ? '+' : ''}
+                    {formatINR(carResult.battery_valuation_impact.adjustment_inr)})
+                  </span>
+                </span>
+              </>
+            )}
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
             {carInput.brand} {carInput.model}
@@ -308,6 +328,41 @@ export const ResultsPage: React.FC = () => {
             </div>
           )}
 
+          {/* Battery Health Valuation Impact Callout */}
+          {carResult.battery_valuation_impact && (
+            <div className={`p-4 rounded-xl border space-y-2.5 ${
+              carResult.battery_valuation_impact.adjustment_inr >= 0
+                ? 'bg-emerald-50/70 border-emerald-200'
+                : carResult.battery_valuation_impact.adjustment_percent <= -20
+                ? 'bg-rose-50/70 border-rose-200'
+                : 'bg-amber-50/70 border-amber-200'
+            }`}>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold font-mono text-slate-900 flex items-center gap-1.5">
+                  <BatteryCharging className="w-4 h-4 text-slate-900" />
+                  <span>Battery Health Resale Impact</span>
+                </span>
+                <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded-full border ${
+                  carResult.battery_valuation_impact.adjustment_inr >= 0
+                    ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                    : carResult.battery_valuation_impact.adjustment_percent <= -20
+                    ? 'bg-rose-100 text-rose-900 border-rose-300'
+                    : 'bg-amber-100 text-amber-900 border-amber-300'
+                }`}>
+                  {carResult.battery_valuation_impact.adjustment_percent >= 0 ? '+' : ''}
+                  {carResult.battery_valuation_impact.adjustment_percent}% ({formatINR(carResult.battery_valuation_impact.adjustment_inr)})
+                </span>
+              </div>
+              <p className="text-xs text-slate-700 font-mono leading-relaxed">
+                {carResult.battery_valuation_impact.explanation}
+              </p>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px] font-mono text-slate-600 pt-1.5 border-t border-slate-200/80">
+                <span>Replacement Risk: <strong className="text-slate-900">{carResult.battery_valuation_impact.pack_replacement_risk}</strong></span>
+                <span>Condition: <strong className="text-slate-900">{carResult.battery_valuation_impact.condition_category}</strong></span>
+              </div>
+            </div>
+          )}
+
           {/* Model confidence note */}
           <div className="pt-4 border-t border-slate-200 text-xs text-slate-500 space-y-1 font-mono">
             <div className="flex items-center justify-between text-[11px]">
@@ -431,6 +486,32 @@ export const ResultsPage: React.FC = () => {
                     </div>
                   </div>
                 </div>
+
+                {/* Battery Health Valuation Financial Delta */}
+                {carResult.battery_valuation_impact && (
+                  <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-2xs space-y-2 font-mono">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-slate-800 font-bold flex items-center gap-1.5">
+                        <Zap className="w-3.5 h-3.5 text-slate-900" />
+                        <span>Resale Valuation Financial Delta:</span>
+                      </span>
+                      <span className={`text-sm font-bold ${
+                        carResult.battery_valuation_impact.adjustment_inr >= 0
+                          ? 'text-emerald-700'
+                          : carResult.battery_valuation_impact.adjustment_percent <= -20
+                          ? 'text-rose-700'
+                          : 'text-amber-700'
+                      }`}>
+                        {carResult.battery_valuation_impact.adjustment_inr >= 0 ? '+' : ''}
+                        {formatINR(carResult.battery_valuation_impact.adjustment_inr)} ({carResult.battery_valuation_impact.adjustment_percent >= 0 ? '+' : ''}{carResult.battery_valuation_impact.adjustment_percent}%)
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-slate-600 flex items-center justify-between border-t border-slate-100 pt-1.5">
+                      <span>Replacement Risk Grade:</span>
+                      <span className="font-semibold text-slate-900">{carResult.battery_valuation_impact.pack_replacement_risk}</span>
+                    </div>
+                  </div>
+                )}
 
                 <div className="p-3 rounded-lg bg-white border border-slate-200 text-[11px] text-slate-600 flex items-start gap-2">
                   <ShieldAlert className="w-4 h-4 text-slate-900 shrink-0 mt-0.5" />
