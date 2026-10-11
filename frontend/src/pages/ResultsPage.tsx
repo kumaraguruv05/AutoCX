@@ -25,6 +25,8 @@ import { storageService } from '@/services/storage';
 import { CockpitGauges } from '@/components/cockpit/CockpitGauges';
 import { DynoTelemetryCurve } from '@/components/cockpit/DynoTelemetryCurve';
 import { EVSkateboardChassis } from '@/components/cockpit/EVSkateboardChassis';
+import { ChassisBuildPlate } from '@/components/cockpit/ChassisBuildPlate';
+import { OdometerRollingNumber } from '@/components/cockpit/OdometerRollingNumber';
 
 interface LocationState {
   analysisId?: string;
@@ -176,74 +178,19 @@ export const ResultsPage: React.FC = () => {
         batteryAdjustmentInr={carResult.battery_valuation_impact?.adjustment_inr}
       />
 
-      {/* Vehicle Summary Bar */}
-      <div className="p-6 sm:p-8 rounded-2xl bg-white border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xs">
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <span className="text-xs font-mono px-2.5 py-0.5 rounded-full bg-black text-white font-semibold">
-              {carInput.fuel}
-            </span>
-            <span className="text-xs font-mono text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
-              {carInput.year}
-            </span>
-            <span className="text-xs text-slate-300">•</span>
-            <span className="text-xs font-mono text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
-              {carInput.transmission}
-            </span>
-            <span className="text-xs text-slate-300">•</span>
-            <span className="text-xs font-mono text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
-              {carInput.owner}
-            </span>
-            {carResult.vehicle_summary.segment && (
-              <>
-                <span className="text-xs text-slate-300">•</span>
-                <span className="text-xs font-mono text-slate-800 bg-slate-100 px-2.5 py-0.5 rounded-md font-semibold border border-slate-300">
-                  {carResult.vehicle_summary.segment}
-                </span>
-              </>
-            )}
-            {carResult.battery_valuation_impact && (
-              <>
-                <span className="text-xs text-slate-300">•</span>
-                <span className={`text-xs font-mono px-2.5 py-0.5 rounded-md font-semibold border flex items-center gap-1 ${
-                  carResult.battery_valuation_impact.is_eol_override
-                    ? 'bg-rose-50 text-rose-900 border-rose-300'
-                    : carResult.battery_valuation_impact.adjustment_inr >= 0
-                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                    : 'bg-amber-50 text-amber-800 border-amber-300'
-                }`}>
-                  <Zap className="w-3 h-3" />
-                  <span>
-                    {carResult.battery_valuation_impact.battery_soh.toFixed(1)}% SOH (
-                    {carResult.battery_valuation_impact.is_eol_override
-                      ? `EOL Override: ${formatINR(carResult.battery_valuation_impact.adjustment_inr)}`
-                      : `${carResult.battery_valuation_impact.adjustment_inr >= 0 ? '+' : ''}${formatINR(carResult.battery_valuation_impact.adjustment_inr)}`}
-                    )
-                  </span>
-                </span>
-              </>
-            )}
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            {carInput.brand} {carInput.model}
-          </h1>
-          <p className="text-xs text-slate-500 font-mono">
-            Odometer: {carInput.km_driven.toLocaleString()} km ({carResult.vehicle_summary.vehicle_age} yrs old)
-          </p>
-        </div>
-
-        <div className="text-left md:text-right border-t md:border-t-0 pt-4 md:pt-0 border-slate-200">
-          <div className="text-xs text-slate-500 font-mono uppercase tracking-wider font-semibold">
-            Estimated Resale Value
-          </div>
-          <div className="text-3xl sm:text-4xl font-extrabold text-slate-900 font-mono mt-0.5">
-            {formatINR(carResult.estimated_resale_price)}
-          </div>
-          <div className="text-xs font-mono text-slate-600 mt-1 font-semibold">
-            ({formatIndianDenomination(carResult.estimated_resale_price)})
-          </div>
-        </div>
-      </div>
+      {/* Feature 2: Stamped Metal Chassis Build Plate & Monocoque Plaque */}
+      <ChassisBuildPlate
+        brand={carInput.brand}
+        model={carInput.model}
+        year={carInput.year}
+        fuel={carInput.fuel}
+        transmission={carInput.transmission}
+        owner={carInput.owner}
+        kmDriven={carInput.km_driven}
+        vehicleAge={carResult.vehicle_summary.vehicle_age}
+        segment={carResult.vehicle_summary.segment}
+        algorithm={carResult.algorithm}
+      />
 
       {/* Domain Guardrail Notice (if post-processing rules were triggered) */}
       {carResult.vehicle_summary.guardrails_applied && carResult.vehicle_summary.guardrails_applied.length > 0 && (

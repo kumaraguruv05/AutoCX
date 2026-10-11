@@ -35,6 +35,7 @@ import {
 } from '@/types/api';
 import { F1ShiftLights } from '@/components/cockpit/F1ShiftLights';
 import { EVSkateboardChassis } from '@/components/cockpit/EVSkateboardChassis';
+import { DrivingLoadingModal } from '@/components/cockpit/DrivingLoadingModal';
 
 // Typical real-world single-charge ranges for EV models (in km)
 const EV_DEFAULT_RANGES: Record<string, number> = {
@@ -268,6 +269,17 @@ export const AnalyzePage: React.FC = () => {
   // Submission / Loading / Error state
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [showDrivingModal, setShowDrivingModal] = useState<boolean>(false);
+  const [pendingAnalysisState, setPendingAnalysisState] = useState<any>(null);
+
+  const handleDrivingComplete = () => {
+    setShowDrivingModal(false);
+    setIsLoading(false);
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    if (pendingAnalysisState) {
+      navigate('/results', { state: pendingAnalysisState });
+    }
+  };
 
   // Load schema and vehicle catalog from backend
   useEffect(() => {
@@ -464,23 +476,19 @@ export const AnalyzePage: React.FC = () => {
         batteryResult,
       });
 
-      // Reset scroll position so Results page directly renders gauge dashboard at the top
-      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-
-      // Navigate to results page with analysis in state
-      navigate('/results', {
-        state: {
-          analysisId: saved.id,
-          carInput: carPayload,
-          carResult,
-          batteryInput: batteryPayload,
-          batteryResult,
-        },
-      });
+      // Prepare results payload and launch 2D parallax driving loading screen
+      const navState = {
+        analysisId: saved.id,
+        carInput: carPayload,
+        carResult,
+        batteryInput: batteryPayload,
+        batteryResult,
+      };
+      setPendingAnalysisState(navState);
+      setShowDrivingModal(true);
     } catch (err: any) {
       console.error('Prediction failed:', err);
       setError(err.message || 'An unexpected error occurred while predicting vehicle value.');
-    } finally {
       setIsLoading(false);
     }
   };
@@ -1418,6 +1426,16 @@ export const AnalyzePage: React.FC = () => {
         </div>
       </div>
     </form>
+
+    {/* 2D Parallax Driving Loading Modal */}
+    <DrivingLoadingModal
+      isOpen={showDrivingModal}
+      brand={brand}
+      model={model}
+      fuel={fuel}
+      segment={currentProfile?.segment}
+      onComplete={handleDrivingComplete}
+    />
   </div>
   );
 };

@@ -150,3 +150,83 @@
   animation: chassis-grid-pulse 3s infinite ease-in-out;
 }
 
+/* 2D Car Driving Animations */
+@keyframes wheel-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-wheel-spin {
+  animation: wheel-spin 0.4s linear infinite;
+  transform-origin: center;
+}
+
+@keyframes chassis-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-2px);
+  }
+  70% {
+    transform: translateY(1px);
+  }
+}
+
+.animate-chassis-float {
+  animation: chassis-float 0.8s ease-in-out infinite;
+}
+
+@keyframes road-dash-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-road-scroll {
+  animation: road-dash-scroll 0.55s linear infinite;
+}
+
+@keyframes parallax-scenery {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-scenery-far {
+  animation: parallax-scenery 8s linear infinite;
+}
+
+.animate-scenery-mid {
+  animation: parallax-scenery 3.5s linear infinite;
+}
+
+@keyframes speedline-rush {
+  0% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateX(-150%);
+    opacity: 0;
+  }
+}
+
+.animate-speedline {
+  animation: speedline-rush 0.6s linear infinite;
+}
+
+

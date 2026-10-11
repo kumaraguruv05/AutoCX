@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { F1ShiftLights } from './F1ShiftLights';
 import { formatINR, formatIndianDenomination } from '@/utils/formatters';
-import { playRevSound } from '@/utils/engineAudio';
+import { OdometerRollingNumber } from './OdometerRollingNumber';
 
 interface CockpitGaugesProps {
   retentionPercent: number; // e.g. 68.5%
@@ -59,7 +59,6 @@ export const CockpitGauges: React.FC<CockpitGaugesProps> = ({
   const triggerRev = () => {
     if (isManualRevving) return;
 
-    playRevSound();
     setIsManualRevving(true);
     setHasSwept(true);
 
@@ -193,7 +192,7 @@ export const CockpitGauges: React.FC<CockpitGaugesProps> = ({
               <span>ESTIMATED RESALE VALUE</span>
             </div>
             <div className="text-3xl sm:text-4xl lg:text-5xl font-black font-mono text-white tracking-tight drop-shadow-[0_2px_12px_rgba(255,255,255,0.3)]">
-              {formatINR(estimatedPrice)}
+              <OdometerRollingNumber value={estimatedPrice} />
             </div>
             <div className="text-xs font-mono font-bold flex items-center gap-2">
               <span className="px-2.5 py-0.5 rounded-md bg-cyan-950 text-cyan-300 border border-cyan-700 font-extrabold">
@@ -509,7 +508,7 @@ export const CockpitGauges: React.FC<CockpitGaugesProps> = ({
             {/* Bottom Digital Center Display - High-Contrast Black Box Pod */}
             <div className="absolute bottom-3 text-center font-mono z-20 px-3.5 py-1.5 rounded-xl bg-black border-2 border-neutral-700 shadow-[0_4px_20px_rgba(0,0,0,0.95)]">
               <span className="text-lg sm:text-xl font-black tracking-tight text-white block">
-                {formatINR(estimatedPrice)}
+                <OdometerRollingNumber value={estimatedPrice} />
               </span>
               <span className="text-[9px] uppercase tracking-wider text-cyan-400 font-bold block">
                 MARKET VALUE

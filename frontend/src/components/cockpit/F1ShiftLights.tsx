@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { playRevSound } from '@/utils/engineAudio';
 
 interface F1ShiftLightsProps {
   isRevving?: boolean;
@@ -36,7 +35,6 @@ export const F1ShiftLights: React.FC<F1ShiftLightsProps> = ({
     e.stopPropagation();
     if (manualRevActive || isRevving) return;
 
-    playRevSound();
     onRev?.();
     setManualRevActive(true);
 
