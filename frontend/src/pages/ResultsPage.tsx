@@ -165,6 +165,14 @@ export const ResultsPage: React.FC = () => {
             <span className="text-xs font-mono text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
               {carInput.owner}
             </span>
+            {carResult.vehicle_summary.segment && (
+              <>
+                <span className="text-xs text-slate-300">•</span>
+                <span className="text-xs font-mono text-slate-800 bg-slate-100 px-2.5 py-0.5 rounded-md font-semibold border border-slate-300">
+                  {carResult.vehicle_summary.segment}
+                </span>
+              </>
+            )}
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
             {carInput.brand} {carInput.model}
@@ -186,6 +194,23 @@ export const ResultsPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Domain Guardrail Notice (if post-processing rules were triggered) */}
+      {carResult.vehicle_summary.guardrails_applied && carResult.vehicle_summary.guardrails_applied.length > 0 && (
+        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-start gap-3">
+          <ShieldAlert className="w-4 h-4 text-slate-900 shrink-0 mt-0.5" />
+          <div className="text-xs space-y-1">
+            <span className="font-bold text-slate-900 block font-mono">
+              AutoCX Domain Guardrails Applied
+            </span>
+            <ul className="text-slate-600 list-disc list-inside space-y-0.5 font-mono">
+              {carResult.vehicle_summary.guardrails_applied.map((g, idx) => (
+                <li key={idx}>{g}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
 
       {/* Core Results: Render 2-column grid when EV battery health is present, otherwise full single-column */}
       <div className={showBatteryDashboard ? 'grid grid-cols-1 lg:grid-cols-2 gap-8' : 'max-w-3xl mx-auto'}>

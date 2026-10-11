@@ -8,6 +8,7 @@ class ModelRegistry:
         self.car_model = None
         self.car_schema = None
         self.car_metadata = None
+        self.car_catalog = {}
         
         self.battery_model = None
         self.battery_schema = None
@@ -32,6 +33,11 @@ class ModelRegistry:
         if os.path.exists(settings.CAR_METADATA_PATH):
             with open(settings.CAR_METADATA_PATH, "r", encoding="utf-8") as f:
                 self.car_metadata = json.load(f)
+
+        if os.path.exists(settings.CAR_CATALOG_PATH):
+            with open(settings.CAR_CATALOG_PATH, "r", encoding="utf-8") as f:
+                self.car_catalog = json.load(f)
+                print(f"  Loaded Car Catalog ({len(self.car_catalog)} vehicles) from {settings.CAR_CATALOG_PATH}")
                 
         # 2. Battery SOH Model
         if os.path.exists(settings.BATTERY_MODEL_PATH):

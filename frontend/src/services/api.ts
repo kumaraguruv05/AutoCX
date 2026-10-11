@@ -5,6 +5,7 @@ import {
   BatteryPredictionResponse,
   ModelsInfoResponse,
   HealthResponse,
+  VehicleProfile,
 } from '@/types/api';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -43,6 +44,11 @@ export const apiClient = {
   async getCarSchema(): Promise<any> {
     const res = await fetch(`${API_BASE_URL}/api/models/schema/car`);
     return handleResponse<any>(res);
+  },
+
+  async getCarCatalog(): Promise<Record<string, VehicleProfile>> {
+    const res = await fetch(`${API_BASE_URL}/api/models/catalog/car`);
+    return handleResponse<Record<string, VehicleProfile>>(res);
   },
 
   async getBatterySchema(): Promise<any> {

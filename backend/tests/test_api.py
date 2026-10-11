@@ -134,3 +134,57 @@ def test_predict_battery_soh_invalid_cycle(client):
     }
     response = client.post("/api/predict/battery-health", json=payload)
     assert response.status_code == 422
+
+def test_predict_maruti_800_microcar_overvaluation_fixed(client):
+    # 2014 Maruti 800 AC, 100,000 km, Petrol, Manual, 1st Owner
+    payload = {
+        "brand": "Maruti",
+        "model": "800 AC",
+        "year": 2014,
+        "km_driven": 100000,
+        "fuel": "Petrol",
+        "transmission": "Manual",
+        "owner": "First Owner",
+        "original_price": 235000.0
+    }
+    response = client.post("/api/predict/car-value", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    price = data["estimated_resale_price"]
+    # Must NOT be overvalued to Rs 2.94L! Realistic range: 40,000 to 75,000
+    assert 30000.0 <= price <= 75000.0
+    assert data["vehicle_summary"]["segment"] == "Micro / Entry Hatchback"
+    assert len(data["vehicle_summary"]["guardrails_applied"]) > 0
+
+def test_predict_ford_endeavour_suv_undervaluation_fixed(client):
+    # 2018 Ford Endeavour 3.2 4x4, 80,000 km, Diesel, Automatic, 1st Owner, original sticker Rs 41L
+    payload = {
+        "brand": "Ford",
+        "model": "Endeavour 3.2",
+        "year": 2018,
+        "km_driven": 80000,
+        "fuel": "Diesel",
+        "transmission": "Automatic",
+        "owner": "First Owner",
+        "original_price": 4100000.0
+    }
+    response = client.post("/api/predict/car-value", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    price = data["estimated_resale_price"]
+    # Must NOT be crushed to Rs 8.7L! Realistic market value is Rs 20L - Rs 28L
+    assert price >= 2000000.0
+    assert price <= 2800000.0
+    assert data["vehicle_summary"]["segment"] == "Full-Size / Premium SUV"
+
+def test_car_catalog_endpoint(client):
+    response = client.get("/api/models/catalog/car")
+    assert response.status_code == 200
+    catalog = response.json()
+    assert len(catalog) > 1000
+    assert "Maruti::800 AC" in catalog
+    m800 = catalog["Maruti::800 AC"]
+    assert m800["year_max"] <= 2014
+    assert m800["segment"] == "Micro / Entry Hatchback"
+    assert "Ford::Endeavour 3.2" in catalog
+

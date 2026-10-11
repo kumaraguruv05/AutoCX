@@ -68,6 +68,10 @@ def get_models_info():
 def get_car_schema():
     return registry.car_schema or {}
 
+@router.get("/models/catalog/car", tags=["Models"])
+def get_car_catalog():
+    return registry.car_catalog or {}
+
 @router.get("/models/schema/battery", tags=["Models"])
 def get_battery_schema():
     return registry.battery_schema or {}

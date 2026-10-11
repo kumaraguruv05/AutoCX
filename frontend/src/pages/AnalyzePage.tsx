@@ -19,7 +19,8 @@ import {
   CarPredictionRequest,
   BatteryPredictionRequest,
   CarPredictionResponse,
-  BatteryPredictionResponse
+  BatteryPredictionResponse,
+  VehicleProfile
 } from '@/types/api';
 
 // Intelligent presets for EV diagnostic testing
@@ -93,10 +94,11 @@ export const AnalyzePage: React.FC = () => {
   const initialCar = stateData?.editAnalysis?.carInput;
   const initialBattery = stateData?.editAnalysis?.batteryInput;
 
-  // Schema state
+  // Schema and Catalog state
   const [brands, setBrands] = useState<string[]>(DEFAULT_BRANDS);
   const [brandModelsMap, setBrandModelsMap] = useState<Record<string, string[]>>({});
   const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [carCatalog, setCarCatalog] = useState<Record<string, VehicleProfile>>({});
 
   // Car form fields
   const [brand, setBrand] = useState<string>(initialCar?.brand || 'Maruti');
@@ -153,11 +155,13 @@ export const AnalyzePage: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load schema from backend
+  // Load schema and vehicle catalog from backend
   useEffect(() => {
-    apiClient
-      .getCarSchema()
-      .then((schema) => {
+    Promise.all([
+      apiClient.getCarSchema(),
+      apiClient.getCarCatalog()
+    ])
+      .then(([schema, catalog]) => {
         if (schema && schema.brands && schema.brands.length > 0) {
           setBrands(schema.brands);
           if (schema.brand_models_map) {
@@ -166,9 +170,12 @@ export const AnalyzePage: React.FC = () => {
             setAvailableModels(models);
           }
         }
+        if (catalog) {
+          setCarCatalog(catalog);
+        }
       })
       .catch((err) => {
-        console.warn('Could not load dynamic car schema, using defaults:', err);
+        console.warn('Could not load dynamic car schema or catalog, using defaults:', err);
       });
   }, []);
 
@@ -185,19 +192,60 @@ export const AnalyzePage: React.FC = () => {
     }
   }, [brand, brandModelsMap]);
 
+  // Current active vehicle profile from catalog
+  const currentProfile = carCatalog[`${brand}::${model}`];
+  const yearMin = currentProfile?.year_min || 1990;
+  const yearMax = currentProfile?.year_max || new Date().getFullYear();
+  const validFuels = currentProfile?.valid_fuels && currentProfile.valid_fuels.length > 0
+    ? currentProfile.valid_fuels
+    : ['Petrol', 'Diesel', 'CNG', 'LPG', 'Electric', 'Hybrid'];
+  const validTransmissions = currentProfile?.valid_transmissions && currentProfile.valid_transmissions.length > 0
+    ? currentProfile.valid_transmissions
+    : ['Manual', 'Automatic'];
+
   // Handle Fuel change side-effects (CONDITIONAL EV BEHAVIOR)
   const handleFuelChange = (newFuel: string) => {
     setFuel(newFuel);
     setError(null);
     if (newFuel === 'Electric') {
       setIncludeBatteryDiagnostic(true);
-      setEngineCc('0'); // Pure EV has 0cc combustion displacement
-    } else if (newFuel !== 'Electric') {
-      // Clear battery diagnostic intent for non-EV
+      setEngineCc('0');
+    } else {
       setIncludeBatteryDiagnostic(false);
-      if (engineCc === '0') setEngineCc('1197');
+      if (engineCc === '0') {
+        setEngineCc(currentProfile ? String(currentProfile.engine_cc) : '1197');
+      }
     }
   };
+
+  // Sync profile specs and constraints when model changes
+  useEffect(() => {
+    if (currentProfile) {
+      // 1. Constrain year
+      if (year > currentProfile.year_max) {
+        setYear(currentProfile.year_max);
+      } else if (year < currentProfile.year_min) {
+        setYear(currentProfile.year_min);
+      }
+      // 2. Constrain fuel
+      if (currentProfile.valid_fuels && currentProfile.valid_fuels.length > 0) {
+        if (!currentProfile.valid_fuels.includes(fuel)) {
+          handleFuelChange(currentProfile.valid_fuels[0]);
+        }
+      }
+      // 3. Constrain transmission
+      if (currentProfile.valid_transmissions && currentProfile.valid_transmissions.length > 0) {
+        if (!currentProfile.valid_transmissions.includes(transmission)) {
+          setTransmission(currentProfile.valid_transmissions[0]);
+        }
+      }
+      // 4. Auto pre-fill technical specifications
+      setEngineCc(String(currentProfile.engine_cc));
+      setMaxPowerBhp(String(currentProfile.max_power_bhp));
+      setMileageKmpl(String(currentProfile.mileage_kmpl));
+      setSeats(currentProfile.seats);
+    }
+  }, [brand, model, carCatalog]);
 
   const applyEvPreset = (presetData: any) => {
     setCycle(presetData.cycle);
@@ -321,7 +369,14 @@ export const AnalyzePage: React.FC = () => {
               <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center text-white font-bold text-sm">
                 1
               </div>
-              <h2 className="text-lg font-bold text-slate-950">Vehicle Specifications</h2>
+              <div className="flex items-center gap-2.5">
+                <h2 className="text-lg font-bold text-slate-950">Vehicle Specifications</h2>
+                {currentProfile?.segment && (
+                  <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-800 border border-slate-300 font-semibold">
+                    {currentProfile.segment}
+                  </span>
+                )}
+              </div>
             </div>
             <span className="text-xs font-mono text-slate-500">Required inputs</span>
           </div>
@@ -376,20 +431,28 @@ export const AnalyzePage: React.FC = () => {
 
             {/* Manufacturing Year */}
             <div className="space-y-2">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
-                Manufacturing Year
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
+                  Manufacturing Year
+                </label>
+                {currentProfile && currentProfile.year_max < 2024 && (
+                  <span className="text-[10px] text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded font-mono font-semibold">
+                    Discontinued in {currentProfile.year_max}
+                  </span>
+                )}
+              </div>
               <input
                 type="number"
-                min="1990"
-                max={new Date().getFullYear()}
+                min={yearMin}
+                max={yearMax}
                 value={year}
                 onChange={(e) => setYear(Number(e.target.value))}
                 className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3.5 py-2.5 text-slate-900 text-sm focus:outline-none focus:bg-white focus:border-black focus:ring-1 focus:ring-black transition-all font-mono"
                 required
               />
-              <p className="text-[11px] text-slate-500 font-mono">
-                Computed Vehicle Age: {Math.max(0, 2024 - year)} years
+              <p className="text-[11px] text-slate-500 font-mono flex items-center justify-between">
+                <span>Production span: {yearMin} – {yearMax}</span>
+                <span>Computed Age: {Math.max(0, 2024 - year)} years</span>
               </p>
             </div>
 
@@ -432,12 +495,11 @@ export const AnalyzePage: React.FC = () => {
                     : 'border-slate-300 focus:border-black focus:ring-1 focus:ring-black'
                 }`}
               >
-                <option value="Petrol">Petrol</option>
-                <option value="Diesel">Diesel</option>
-                <option value="CNG">CNG</option>
-                <option value="LPG">LPG</option>
-                <option value="Electric">Electric (BEV)</option>
-                <option value="Hybrid">Hybrid (HEV)</option>
+                {validFuels.map((f) => (
+                  <option key={f} value={f}>
+                    {f === 'Electric' ? 'Electric (BEV)' : f === 'Hybrid' ? 'Hybrid (HEV)' : f}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -451,8 +513,11 @@ export const AnalyzePage: React.FC = () => {
                 onChange={(e) => setTransmission(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3.5 py-2.5 text-slate-900 text-sm focus:outline-none focus:bg-white focus:border-black focus:ring-1 focus:ring-black transition-all"
               >
-                <option value="Manual">Manual</option>
-                <option value="Automatic">Automatic</option>
+                {validTransmissions.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -517,14 +582,18 @@ export const AnalyzePage: React.FC = () => {
                 autoComplete="off"
                 min="0"
                 step="10000"
-                placeholder="e.g. 850000 (leave blank to predict resale value only)"
+                placeholder={
+                  currentProfile
+                    ? `e.g. ${currentProfile.typical_original_price.toLocaleString()} (Estimated sticker price for ${model})`
+                    : "e.g. 850000 (leave blank to predict resale value only)"
+                }
                 value={originalPrice}
                 onChange={(e) => setOriginalPrice(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-300 rounded-lg pl-8 pr-4 py-2.5 text-slate-900 text-sm focus:outline-none focus:bg-white focus:border-black focus:ring-1 focus:ring-black transition-all font-mono"
               />
             </div>
             <p className="text-[11px] text-slate-500 leading-relaxed">
-              <strong className="text-slate-700">Why provide this?</strong> When an original purchase price is supplied, AutoCX computes the exact rupee depreciation amount and cumulative value retention percentage. If left blank, AutoCX will estimate the fair market resale value without depreciation.
+              <strong className="text-slate-700">Why provide this?</strong> When an original purchase price is supplied, AutoCX anchors depreciation to real vehicle retention curves. If left blank, AutoCX estimates the fair market resale value directly from model segment kinematics.
             </p>
           </div>
 
@@ -536,11 +605,18 @@ export const AnalyzePage: React.FC = () => {
               className="text-xs text-slate-800 hover:text-black font-mono flex items-center gap-1.5 transition-colors cursor-pointer"
             >
               <Sliders className="w-3.5 h-3.5" />
-              <span>{showAdvancedSpecs ? 'Hide' : 'Customize'} Technical Specifications (Engine, Power, Mileage, Seats)</span>
+              <span>{showAdvancedSpecs ? 'Hide' : 'Customize'} Technical Specifications ({engineCc} cc • {maxPowerBhp} bhp • {seats} seats)</span>
             </button>
 
             {showAdvancedSpecs && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4 pt-4 border-t border-slate-200">
+              <div className="space-y-3 mt-4 pt-4 border-t border-slate-200">
+                <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-600 flex items-center gap-2">
+                  <Info className="w-4 h-4 text-slate-900 shrink-0" />
+                  <span>
+                    Specifications auto-populated from AutoCX vehicle catalog for <strong>{brand} {model}</strong> ({currentProfile?.segment || 'Standard'}). You can adjust these if your specific variant differs.
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div className="space-y-1">
                   <label className="text-[11px] text-slate-600 font-mono">
                     {fuel === 'Electric' ? 'Displacement (EV)' : 'Engine (CC)'}
@@ -584,9 +660,10 @@ export const AnalyzePage: React.FC = () => {
                   />
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
+      </div>
 
         {/* SECTION 2: CONDITIONAL EV BATTERY HEALTH SECTION */}
         {fuel === 'Electric' ? (

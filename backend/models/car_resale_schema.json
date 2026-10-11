@@ -5,11 +5,16 @@
     "engine_cc",
     "max_power_bhp",
     "mileage_kmpl",
-    "seats"
+    "seats",
+    "power_to_displacement",
+    "annual_km",
+    "model_anchor",
+    "segment_anchor"
   ],
   "categorical_features": [
     "brand",
     "model",
+    "segment",
     "fuel",
     "seller_type",
     "transmission",
@@ -41,6 +46,18 @@
     "Second Owner",
     "Test Drive Car",
     "Third Owner"
+  ],
+  "segments": [
+    "Compact / Midsize SUV",
+    "Compact Sedan",
+    "Executive / Luxury Sedan",
+    "Full-Size / Premium SUV",
+    "Hatchback",
+    "Luxury SUV",
+    "MUV / MPV / Van",
+    "Micro / Entry Hatchback",
+    "Midsize Sedan",
+    "Sub-Compact SUV"
   ],
   "brands": [
     "Ambassador",

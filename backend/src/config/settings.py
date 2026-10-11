@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     CAR_MODEL_PATH: str = os.path.join(MODELS_DIR, "car_resale_model.joblib")
     CAR_SCHEMA_PATH: str = os.path.join(MODELS_DIR, "car_resale_schema.json")
     CAR_METADATA_PATH: str = os.path.join(MODELS_DIR, "car_resale_metadata.json")
+    CAR_CATALOG_PATH: str = os.path.join(MODELS_DIR, "car_catalog.json")
     
     BATTERY_MODEL_PATH: str = os.path.join(MODELS_DIR, "battery_soh_model.joblib")
     BATTERY_SCHEMA_PATH: str = os.path.join(MODELS_DIR, "battery_soh_schema.json")

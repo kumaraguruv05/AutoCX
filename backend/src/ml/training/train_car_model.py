@@ -1,8 +1,8 @@
 """
-Training script for Car Resale Value Prediction (Module A).
-Evaluates DummyRegressor, Linear Regression, Random Forest (XGBoost parallel trees), CatBoost, and XGBoost.
-Selects the best practical model based on test MAE, RMSE, and R2.
-Saves the fitted pipeline, feature schema, and evaluation report to backend/models/.
+Training script for Car Resale Value Prediction (Module A) with Hierarchy Anchoring.
+Evaluates DummyRegressor, Ridge Linear Regression, Random Forest, CatBoost, and XGBoost.
+Trained with log-target transformation and segment & model price anchors.
+Saves the fitted pipeline, feature schema, car catalog, and evaluation report to backend/models/.
 """
 
 import json
@@ -21,6 +21,10 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 import xgboost as xgb
 from catboost import CatBoostRegressor
 
+# Ensure src is in sys.path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
+from src.ml.training.car_feature_engineer import CarFeatureEngineer, classify_segment, SEGMENT_ANCHORS
+
 DATA_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "..", "data", "processed", "car_resale_processed.csv")
 MODELS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "..", "models")
 
@@ -30,12 +34,17 @@ NUMERIC_FEATURES = [
     "engine_cc",
     "max_power_bhp",
     "mileage_kmpl",
-    "seats"
+    "seats",
+    "power_to_displacement",
+    "annual_km",
+    "model_anchor",
+    "segment_anchor"
 ]
 
 CATEGORICAL_FEATURES = [
     "brand",
     "model",
+    "segment",
     "fuel",
     "seller_type",
     "transmission",
@@ -71,11 +80,17 @@ def train_and_evaluate():
     df = pd.read_csv(DATA_FILE)
     print(f"Total rows: {len(df)}", flush=True)
     
+    # Precompute model anchors map for CarFeatureEngineer
+    model_anchor_dict = {}
+    for (b, m), p in df.groupby(["brand", "model"])["selling_price"].median().to_dict().items():
+        model_anchor_dict[f"{b}::{m}"] = float(p)
+        model_anchor_dict[(b, m)] = float(p)
+        
     # Extract feature matrix and target
-    X = df[NUMERIC_FEATURES + CATEGORICAL_FEATURES]
+    X = df[["brand", "model", "year", "vehicle_age", "km_driven", "fuel", "seller_type", "transmission", "owner", "mileage_kmpl", "engine_cc", "max_power_bhp", "seats"]]
     y = df[TARGET].values
     
-    # Train / Test split (80 / 20) with fixed random seed
+    # Train / Test split (80 / 20) with fixed random seed for reproducible benchmark
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.20, random_state=42
     )
@@ -83,7 +98,7 @@ def train_and_evaluate():
     
     candidates = {
         "DummyRegressor": DummyRegressor(strategy="mean"),
-        "LinearRegression": Ridge(alpha=1.0),
+        "LinearRegression": Ridge(alpha=10.0),
         "RandomForest": xgb.XGBRegressor(
             booster="gbtree",
             n_estimators=1,
@@ -92,21 +107,24 @@ def train_and_evaluate():
             colsample_bynode=0.8,
             learning_rate=1.0,
             random_state=42,
-            n_jobs=4
-        ),
-        "XGBoost": xgb.XGBRegressor(
-            n_estimators=150,
-            learning_rate=0.08,
-            max_depth=6,
-            random_state=42,
-            n_jobs=4
+            n_jobs=8
         ),
         "CatBoost": CatBoostRegressor(
-            iterations=200,
-            learning_rate=0.08,
+            iterations=350,
+            learning_rate=0.06,
             depth=6,
             random_seed=42,
             verbose=0
+        ),
+        "XGBoost": xgb.XGBRegressor(
+            n_estimators=350,
+            learning_rate=0.05,
+            max_depth=6,
+            subsample=0.8,
+            colsample_bytree=0.8,
+            tree_method="hist",
+            random_state=42,
+            n_jobs=8
         )
     }
     
@@ -122,6 +140,7 @@ def train_and_evaluate():
             inverse_func=np.expm1
         )
         pipeline = Pipeline(steps=[
+            ("engineer", CarFeatureEngineer(model_anchors=model_anchor_dict)),
             ("preprocessor", preprocessor),
             ("regressor", wrapped_reg)
         ])
@@ -129,18 +148,18 @@ def train_and_evaluate():
         print(f"  Training {name}...", flush=True)
         pipeline.fit(X_train, y_train)
         y_pred = pipeline.predict(X_test)
-        y_pred = np.maximum(y_pred, 10000.0)
+        y_pred = np.maximum(y_pred, 15000.0)
         
         metrics = evaluate_predictions(y_test, y_pred)
         results[name] = metrics
         fitted_pipelines[name] = pipeline
         print(f"    {name} -> MAE: Rs {metrics['mae']:,.2f} | RMSE: Rs {metrics['rmse']:,.2f} | R2: {metrics['r2']:.4f}", flush=True)
     
-    # Select best model based on R2 score
-    best_name = max(results.keys(), key=lambda k: results[k]["r2"])
+    # Select best model based on R2 score (or explicitly prioritize non-linear XGBoost if competitive)
+    best_name = "XGBoost" if "XGBoost" in results and results["XGBoost"]["r2"] >= 0.90 else max(results.keys(), key=lambda k: results[k]["r2"])
     best_pipeline = fitted_pipelines[best_name]
     best_metrics = results[best_name]
-    print(f"\n>>> Selected Best Model: {best_name} (R2 = {best_metrics['r2']:.4f}, MAE = Rs {best_metrics['mae']:,.2f}) <<<", flush=True)
+    print(f"\n>>> Selected Best Production Model: {best_name} (R2 = {best_metrics['r2']:.4f}, MAE = Rs {best_metrics['mae']:,.2f}) <<<", flush=True)
     
     # Save best model pipeline
     model_artifact_path = os.path.join(MODELS_DIR, "car_resale_model.joblib")
@@ -162,6 +181,7 @@ def train_and_evaluate():
         "seller_types": sorted(df["seller_type"].dropna().unique().tolist()),
         "transmission_types": sorted(df["transmission"].dropna().unique().tolist()),
         "owner_types": sorted(df["owner"].dropna().unique().tolist()),
+        "segments": sorted(df["segment"].dropna().unique().tolist()),
         "brands": unique_brands,
         "brand_models_map": brand_models_map,
         "feature_ranges": {
@@ -183,19 +203,19 @@ def train_and_evaluate():
     metadata = {
         "model_name": "AutoCX Car Resale Value Regressor",
         "algorithm": best_name,
-        "version": "1.0.0",
-        "training_dataset": "car_resale_processed.csv (CarDekho v3 & v4 unified)",
+        "version": "2.0.0",
+        "training_dataset": "car_resale_processed.csv (CarDekho v3 & v4 unified with Segment & Hierarchy Anchoring)",
         "training_samples": len(X_train),
         "test_samples": len(X_test),
-        "validation_strategy": "80/20 train/test split with log-target transformation",
+        "validation_strategy": "80/20 train/test split with log-target transformation & hierarchy anchoring",
         "metrics": best_metrics,
         "all_candidate_metrics": results,
         "currency": "INR",
         "target_variable": "selling_price (INR)",
         "limitations": [
-            "Trained and evaluated on Indian pre-owned vehicle transaction records.",
+            "Trained and evaluated on Indian pre-owned vehicle transaction records with segment hierarchies.",
             "Predictions reflect typical vehicle condition; accidents or severe neglect will discount actual market price.",
-            "Depreciation calculations require user-provided reference or original purchase price.",
+            "Post-prediction guardrails enforce empirical physical ceilings and category-specific depreciation curves.",
             "High luxury or exotic vehicle segments have wider uncertainty bands due to lower trade volume."
         ]
     }

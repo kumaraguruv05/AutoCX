@@ -1,15 +1,15 @@
 {
   "model_name": "AutoCX Car Resale Value Regressor",
-  "algorithm": "LinearRegression",
-  "version": "1.0.0",
-  "training_dataset": "car_resale_processed.csv (CarDekho v3 & v4 unified)",
+  "algorithm": "XGBoost",
+  "version": "2.0.0",
+  "training_dataset": "car_resale_processed.csv (CarDekho v3 & v4 unified with Segment & Hierarchy Anchoring)",
   "training_samples": 7120,
   "test_samples": 1780,
-  "validation_strategy": "80/20 train/test split with log-target transformation",
+  "validation_strategy": "80/20 train/test split with log-target transformation & hierarchy anchoring",
   "metrics": {
-    "mae": 122420.78,
-    "rmse": 285508.58,
-    "r2": 0.9386
+    "mae": 91244.08,
+    "rmse": 207477.38,
+    "r2": 0.9676
   },
   "all_candidate_metrics": {
     "DummyRegressor": {
@@ -18,32 +18,32 @@
       "r2": -0.0848
     },
     "LinearRegression": {
-      "mae": 122420.78,
-      "rmse": 285508.58,
-      "r2": 0.9386
+      "mae": 130638.03,
+      "rmse": 514351.03,
+      "r2": 0.8006
     },
     "RandomForest": {
-      "mae": 174903.57,
-      "rmse": 429555.01,
-      "r2": 0.8609
-    },
-    "XGBoost": {
-      "mae": 126363.08,
-      "rmse": 302639.61,
-      "r2": 0.931
+      "mae": 117665.04,
+      "rmse": 297737.05,
+      "r2": 0.9332
     },
     "CatBoost": {
-      "mae": 138009.71,
-      "rmse": 311718.19,
-      "r2": 0.9268
+      "mae": 93122.03,
+      "rmse": 200905.68,
+      "r2": 0.9696
+    },
+    "XGBoost": {
+      "mae": 91244.08,
+      "rmse": 207477.38,
+      "r2": 0.9676
     }
   },
   "currency": "INR",
   "target_variable": "selling_price (INR)",
   "limitations": [
-    "Trained and evaluated on Indian pre-owned vehicle transaction records.",
+    "Trained and evaluated on Indian pre-owned vehicle transaction records with segment hierarchies.",
     "Predictions reflect typical vehicle condition; accidents or severe neglect will discount actual market price.",
-    "Depreciation calculations require user-provided reference or original purchase price.",
+    "Post-prediction guardrails enforce empirical physical ceilings and category-specific depreciation curves.",
     "High luxury or exotic vehicle segments have wider uncertainty bands due to lower trade volume."
   ]
 }

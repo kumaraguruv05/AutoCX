@@ -28,12 +28,16 @@ export interface CarPredictionResponse {
   vehicle_summary: {
     brand: string;
     model: string;
+    segment?: string;
     year: number;
     vehicle_age: number;
     km_driven: number;
     fuel: string;
     transmission: string;
     owner: string;
+    engine_cc?: number;
+    max_power_bhp?: number;
+    guardrails_applied?: string[];
   };
   model_version: string;
   algorithm: string;
@@ -43,6 +47,22 @@ export interface CarPredictionResponse {
     r2?: number;
   };
   limitations: string[];
+}
+
+export interface VehicleProfile {
+  brand: string;
+  model: string;
+  segment: string;
+  year_min: number;
+  year_max: number;
+  valid_fuels: string[];
+  valid_transmissions: string[];
+  engine_cc: number;
+  max_power_bhp: number;
+  mileage_kmpl: number;
+  seats: number;
+  typical_original_price: number;
+  model_price_anchor: number;
 }
 
 export interface BatteryPredictionRequest {
