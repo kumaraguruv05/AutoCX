@@ -7,6 +7,14 @@ interface CockpitGaugesProps {
   estimatedPrice: number;   // e.g. 985000
   fuel: string;
   vehicleAge: number;
+  brand?: string;
+  model?: string;
+  kmDriven?: number;
+  originalPrice?: number | null;
+  depreciationAmount?: number | null;
+  isAppreciation?: boolean;
+  batterySoh?: number | null;
+  batteryAdjustmentInr?: number | null;
   className?: string;
 }
 
@@ -15,6 +23,14 @@ export const CockpitGauges: React.FC<CockpitGaugesProps> = ({
   estimatedPrice,
   fuel,
   vehicleAge,
+  brand,
+  model,
+  kmDriven,
+  originalPrice,
+  depreciationAmount,
+  isAppreciation,
+  batterySoh,
+  batteryAdjustmentInr,
   className = '',
 }) => {
   const [hasSwept, setHasSwept] = useState(false);
@@ -69,8 +85,132 @@ export const CockpitGauges: React.FC<CockpitGaugesProps> = ({
         <F1ShiftLights intensity={Math.round(clampedRetention / 10)} showLabels />
       </div>
 
+      {/* ================= HIGH-VISIBILITY RESULTS BLACK BOX (OVER GAUGE CLUSTERS) ================= */}
+      <div className="relative z-20 my-6 p-5 sm:p-6 rounded-2xl bg-black border-2 border-neutral-700/90 shadow-[0_10px_35px_rgba(0,0,0,0.95)]">
+        {/* Top telemetry line */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pb-4 mb-5 border-b border-neutral-800 text-xs font-mono">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_#38bdf8]" />
+            <span className="font-bold text-neutral-100 tracking-wider">
+              {brand && model ? `${brand} ${model}` : 'VEHICLE RESALE TELEMETRY'}
+            </span>
+            <span className="text-neutral-500">•</span>
+            <span className="text-neutral-300 font-semibold">{fuel}</span>
+            {kmDriven !== undefined && (
+              <>
+                <span className="text-neutral-500">•</span>
+                <span className="text-neutral-300 font-semibold">{kmDriven.toLocaleString()} km</span>
+              </>
+            )}
+            <span className="text-neutral-500">•</span>
+            <span className="text-neutral-300 font-semibold">{vehicleAge} yrs old</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="px-2.5 py-1 rounded bg-neutral-900 border border-neutral-700 text-neutral-200 font-bold text-[11px] tracking-wide">
+              CHRONAX ECU: ONLINE
+            </span>
+            <span className="px-2.5 py-1 rounded bg-neutral-900 border border-neutral-700 text-cyan-400 font-bold text-[11px] tracking-wide">
+              GEAR [ D ]
+            </span>
+          </div>
+        </div>
+
+        {/* Big High-Contrast Result Numbers */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-center">
+          {/* Main Number 1: Estimated Resale Value */}
+          <div className="space-y-1.5">
+            <div className="text-[11px] font-mono text-neutral-400 uppercase tracking-widest font-bold flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              <span>ESTIMATED RESALE VALUE</span>
+            </div>
+            <div className="text-3xl sm:text-4xl lg:text-5xl font-black font-mono text-white tracking-tight drop-shadow-[0_2px_12px_rgba(255,255,255,0.3)]">
+              {formatINR(estimatedPrice)}
+            </div>
+            <div className="text-xs font-mono font-bold flex items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-md bg-cyan-950 text-cyan-300 border border-cyan-700 font-extrabold">
+                {formatIndianDenomination(estimatedPrice)}
+              </span>
+              <span className="text-neutral-400 font-normal">Market Valuation Target</span>
+            </div>
+          </div>
+
+          {/* Main Number 2: Residual Retention % */}
+          <div className="space-y-1.5 md:border-l md:border-neutral-800 md:pl-6">
+            <div className="text-[11px] font-mono text-neutral-400 uppercase tracking-widest font-bold flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-cyan-400" />
+              <span>RESIDUAL RETENTION</span>
+            </div>
+            <div className={`text-3xl sm:text-4xl lg:text-5xl font-black font-mono tracking-tight ${
+              clampedRetention >= 70
+                ? 'text-emerald-400 drop-shadow-[0_0_15px_rgba(52,211,153,0.4)]'
+                : clampedRetention >= 50
+                ? 'text-cyan-400 drop-shadow-[0_0_15px_rgba(56,189,248,0.4)]'
+                : 'text-amber-400 drop-shadow-[0_0_15px_rgba(251,191,36,0.4)]'
+            }`}>
+              {clampedRetention.toFixed(1)}%
+            </div>
+            <div className="text-xs font-mono flex items-center gap-2">
+              {depreciationAmount != null ? (
+                <span className={`font-bold ${isAppreciation ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  {isAppreciation ? '+' : '-'}{formatINR(Math.abs(depreciationAmount))} ({isAppreciation ? 'Appreciated' : 'Depreciated'})
+                </span>
+              ) : (
+                <span className="text-neutral-300 font-semibold">
+                  {clampedRetention >= 70 ? '🟢 Optimal Residual Retention' : clampedRetention >= 50 ? '🟡 Moderate Retention' : '🔴 Accelerated Decay'}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Main Number 3: Original Invoice / EV Battery SOH */}
+          <div className="space-y-1.5 lg:border-l lg:border-neutral-800 lg:pl-6 col-span-1 md:col-span-2 lg:col-span-1">
+            {originalPrice ? (
+              <>
+                <div className="text-[11px] font-mono text-neutral-400 uppercase tracking-widest font-bold flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-slate-400" />
+                  <span>ORIGINAL INVOICE PRICE</span>
+                </div>
+                <div className="text-2xl sm:text-3xl font-black font-mono text-neutral-100">
+                  {formatINR(originalPrice)}
+                </div>
+                <div className="text-xs font-mono text-neutral-400">
+                  {formatIndianDenomination(originalPrice)} • Original Purchase Sticker
+                </div>
+              </>
+            ) : batterySoh != null ? (
+              <>
+                <div className="text-[11px] font-mono text-neutral-400 uppercase tracking-widest font-bold flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-cyan-400" />
+                  <span>TRACTION BATTERY SOH</span>
+                </div>
+                <div className="text-2xl sm:text-3xl font-black font-mono text-cyan-300 drop-shadow-[0_0_10px_rgba(56,189,248,0.4)]">
+                  {batterySoh.toFixed(1)}% SOH
+                </div>
+                <div className="text-xs font-mono text-neutral-300">
+                  Resale Impact: {batteryAdjustmentInr != null && batteryAdjustmentInr >= 0 ? '+' : ''}{batteryAdjustmentInr != null ? formatINR(batteryAdjustmentInr) : 'Evaluated'}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="text-[11px] font-mono text-neutral-400 uppercase tracking-widest font-bold flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-slate-400" />
+                  <span>EST. ANNUAL DEPRECIATION</span>
+                </div>
+                <div className="text-2xl sm:text-3xl font-black font-mono text-neutral-100">
+                  ~{formatINR(Math.round((estimatedPrice * (100 - clampedRetention)) / Math.max(1, vehicleAge * clampedRetention)))} / yr
+                </div>
+                <div className="text-xs font-mono text-neutral-400">
+                  Amortized Resale Decay Rate
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Main Dual-Gauge Instrument Binnacle */}
-      <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-8 pt-6">
+      <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
         {/* ================= GAUGE 1: TACHOMETER (RETENTION RPM) ================= */}
         <div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-neutral-900/80 border border-neutral-800 shadow-inner">
           <div className="relative w-48 h-48 sm:w-56 sm:h-56 flex items-center justify-center">
@@ -169,12 +309,12 @@ export const CockpitGauges: React.FC<CockpitGaugesProps> = ({
               />
             </div>
 
-            {/* Bottom Digital Center Display */}
-            <div className="absolute bottom-5 text-center font-mono z-20">
+            {/* Bottom Digital Center Display - High-Contrast Black Box Pod */}
+            <div className="absolute bottom-3 text-center font-mono z-20 px-3.5 py-1.5 rounded-xl bg-black border-2 border-neutral-700 shadow-[0_4px_20px_rgba(0,0,0,0.95)]">
               <span className="text-xl sm:text-2xl font-black tracking-tight text-white block">
                 {retentionPercent.toFixed(1)}%
               </span>
-              <span className="text-[9px] uppercase tracking-wider text-neutral-400 font-bold block">
+              <span className="text-[9px] uppercase tracking-wider text-emerald-400 font-bold block">
                 RESIDUAL RETENTION
               </span>
             </div>
@@ -263,13 +403,13 @@ export const CockpitGauges: React.FC<CockpitGaugesProps> = ({
               />
             </div>
 
-            {/* Bottom Digital Center Display */}
-            <div className="absolute bottom-5 text-center font-mono z-20">
-              <span className="text-xl sm:text-2xl font-black tracking-tight text-white block">
+            {/* Bottom Digital Center Display - High-Contrast Black Box Pod */}
+            <div className="absolute bottom-3 text-center font-mono z-20 px-3.5 py-1.5 rounded-xl bg-black border-2 border-neutral-700 shadow-[0_4px_20px_rgba(0,0,0,0.95)]">
+              <span className="text-lg sm:text-xl font-black tracking-tight text-white block">
                 {formatINR(estimatedPrice)}
               </span>
               <span className="text-[9px] uppercase tracking-wider text-cyan-400 font-bold block">
-                MARKET RESALE VELOCITY
+                MARKET VALUE
               </span>
             </div>
           </div>

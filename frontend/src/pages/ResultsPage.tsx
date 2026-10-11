@@ -151,7 +151,7 @@ export const ResultsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Concept 1: Digital Cockpit Instrument Cluster & Dynamic Tachometer Sweeps */}
+      {/* Concept 1: Digital Cockpit Instrument Cluster & Dynamic Tachometer Sweeps with Results Black Box */}
       <CockpitGauges
         retentionPercent={
           dep
@@ -161,6 +161,14 @@ export const ResultsPage: React.FC = () => {
         estimatedPrice={carResult.estimated_resale_price}
         fuel={carInput.fuel}
         vehicleAge={carResult.vehicle_summary.vehicle_age}
+        brand={carInput.brand}
+        model={carInput.model}
+        kmDriven={carInput.km_driven}
+        originalPrice={dep?.original_price}
+        depreciationAmount={dep?.depreciation_amount}
+        isAppreciation={dep?.is_appreciation}
+        batterySoh={carResult.battery_valuation_impact?.battery_soh}
+        batteryAdjustmentInr={carResult.battery_valuation_impact?.adjustment_inr}
       />
 
       {/* Vehicle Summary Bar */}
