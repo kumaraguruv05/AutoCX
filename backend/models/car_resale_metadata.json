@@ -1,49 +1,160 @@
 {
   "model_name": "AutoCX Car Resale Value Regressor",
-  "algorithm": "XGBoost",
+  "algorithm": "LinearRegression",
   "version": "2.0.0",
   "training_dataset": "car_resale_processed.csv (CarDekho v3 & v4 unified with Segment & Hierarchy Anchoring)",
   "training_samples": 7120,
   "test_samples": 1780,
-  "validation_strategy": "80/20 train/test split with log-target transformation & hierarchy anchoring",
+  "validation_strategy": "80/20 train/test holdout split with log-target transformation; model anchors fit strictly on train split",
   "metrics": {
-    "mae": 91244.08,
-    "rmse": 207477.38,
-    "r2": 0.9676
+    "mae": 150209.43,
+    "rmse": 516792.58,
+    "r2": 0.7987
   },
   "all_candidate_metrics": {
-    "DummyRegressor": {
-      "mae": 526108.2,
-      "rmse": 1199751.15,
-      "r2": -0.0848
-    },
     "LinearRegression": {
-      "mae": 130638.03,
-      "rmse": 514351.03,
-      "r2": 0.8006
+      "mae": 150209.43,
+      "rmse": 516792.58,
+      "r2": 0.7987
     },
     "RandomForest": {
-      "mae": 117665.04,
-      "rmse": 297737.05,
-      "r2": 0.9332
-    },
-    "CatBoost": {
-      "mae": 93122.03,
-      "rmse": 200905.68,
-      "r2": 0.9696
+      "mae": 183361.45,
+      "rmse": 615865.25,
+      "r2": 0.7142
     },
     "XGBoost": {
-      "mae": 91244.08,
-      "rmse": 207477.38,
-      "r2": 0.9676
+      "mae": 166047.83,
+      "rmse": 549474.12,
+      "r2": 0.7725
+    }
+  },
+  "segment_breakdown": {
+    "Compact / Midsize SUV": {
+      "sample_count": 82,
+      "mae": 142689.22,
+      "rmse": 205159.77,
+      "r2": 0.7749
+    },
+    "Compact Sedan": {
+      "sample_count": 186,
+      "mae": 53310.57,
+      "rmse": 67675.11,
+      "r2": 0.8984
+    },
+    "Executive / Luxury Sedan": {
+      "sample_count": 116,
+      "mae": 564562.04,
+      "rmse": 918297.03,
+      "r2": 0.7315
+    },
+    "Full-Size / Premium SUV": {
+      "sample_count": 31,
+      "mae": 296967.65,
+      "rmse": 394975.54,
+      "r2": 0.8141
+    },
+    "Hatchback": {
+      "sample_count": 547,
+      "mae": 83909.04,
+      "rmse": 372933.15,
+      "r2": 0.4879
+    },
+    "Luxury SUV": {
+      "sample_count": 62,
+      "mae": 1071952.96,
+      "rmse": 2106156.32,
+      "r2": 0.3494
+    },
+    "MUV / MPV / Van": {
+      "sample_count": 281,
+      "mae": 120673.3,
+      "rmse": 225405.05,
+      "r2": 0.8003
+    },
+    "Micro / Entry Hatchback": {
+      "sample_count": 236,
+      "mae": 27634.57,
+      "rmse": 35867.84,
+      "r2": 0.8812
+    },
+    "Midsize Sedan": {
+      "sample_count": 165,
+      "mae": 70289.04,
+      "rmse": 100646.8,
+      "r2": 0.8397
+    },
+    "Sub-Compact SUV": {
+      "sample_count": 74,
+      "mae": 90180.29,
+      "rmse": 120828.08,
+      "r2": 0.5591
+    }
+  },
+  "age_breakdown": {
+    "0-3 Years (Newer)": {
+      "sample_count": 41,
+      "mae": 1089572.21,
+      "rmse": 2446918.33,
+      "r2": 0.3943
+    },
+    "4-7 Years (Mid-Age)": {
+      "sample_count": 568,
+      "mae": 208591.69,
+      "rmse": 552990.45,
+      "r2": 0.8335
+    },
+    "8+ Years (Older)": {
+      "sample_count": 1171,
+      "mae": 89001.07,
+      "rmse": 219103.53,
+      "r2": 0.8614
+    }
+  },
+  "fuel_breakdown": {
+    "CNG": {
+      "sample_count": 26,
+      "mae": 53013.76,
+      "rmse": 73527.42,
+      "r2": 0.8033
+    },
+    "Diesel": {
+      "sample_count": 973,
+      "mae": 190170.8,
+      "rmse": 594338.42,
+      "r2": 0.7864
+    },
+    "Electric": {
+      "sample_count": 2,
+      "mae": 193694.81,
+      "rmse": 195790.35,
+      "r2": "N/A (low sample count)"
+    },
+    "Hybrid": {
+      "sample_count": 1,
+      "mae": 193177.8,
+      "rmse": 193177.8,
+      "r2": "N/A (low sample count)"
+    },
+    "LPG": {
+      "sample_count": 8,
+      "mae": 18658.28,
+      "rmse": 21079.42,
+      "r2": 0.8911
+    },
+    "Petrol": {
+      "sample_count": 770,
+      "mae": 104192.74,
+      "rmse": 413150.57,
+      "r2": 0.7905
     }
   },
   "currency": "INR",
   "target_variable": "selling_price (INR)",
   "limitations": [
-    "Trained and evaluated on Indian pre-owned vehicle transaction records with segment hierarchies.",
-    "Predictions reflect typical vehicle condition; accidents or severe neglect will discount actual market price.",
-    "Post-prediction guardrails enforce empirical physical ceilings and category-specific depreciation curves.",
-    "High luxury or exotic vehicle segments have wider uncertainty bands due to lower trade volume."
+    "Trained and evaluated on Indian pre-owned vehicle listing records with segment hierarchies.",
+    "Market data comprises asking/advertised listing prices rather than audited final bill-of-sale completed transactions.",
+    "Dataset contains limited public electric vehicle transactions (7 EV rows total); zero rows contain verified laboratory/service-centre battery SOH.",
+    "Battery monetary adjustments are therefore labeled provisional with explicit bounds, rather than claimed as fully calibrated from fleet transactions.",
+    "Post-prediction guardrails enforce empirical physical ceilings and category-specific depreciation curves."
   ]
 }

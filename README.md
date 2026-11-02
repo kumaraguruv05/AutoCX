@@ -90,50 +90,78 @@ All models were evaluated on genuine held-out test splits without synthetic data
 
 ---
 
-## 4. Local Setup & Execution Guide (Windows)
+## 4. Local Setup & Execution Guide
 
 ### Prerequisites
 - Python 3.11+
 - Node.js 18+ & npm
+- Git
 
-### Backend Setup & Execution
-Open PowerShell:
+### 1. Clone the Repository
+```bash
+git clone https://github.com/kumaraguruv05/AutoCX.git
+cd AutoCX
+```
+
+### 2. Backend Setup & Execution
+Open a terminal in the project root:
+
+**On Windows (PowerShell):**
 ```powershell
-# Navigate to backend directory
-cd D:\Projects\AutoCX\backend
+cd backend
+python -m venv .venv
+.\.venv\Scripts\activate
+pip install -r requirements.txt
 
-# Activate the virtual environment
-.venv\Scripts\activate
-
-# (Optional) Re-run dataset preprocessing if needed
+# (Optional) Preprocess raw datasets if you want to rebuild processed CSVs
 python src\ml\preprocessing\preprocess_car_data.py
 python src\ml\preprocessing\preprocess_battery_data.py
 
-# (Optional) Re-train models and generate artifact schemas
+# (Optional) Retrain ML models
 python src\ml\training\train_car_model.py
 python src\ml\training\train_battery_model.py
 
-# Run backend test suite
-pytest tests -v
+# Run automated test suite (25 test cases)
+python -m pytest
 
-# Launch the FastAPI server
+# Launch FastAPI backend server
 uvicorn src.main:app --host 127.0.0.1 --port 8000 --reload
 ```
-API Documentation will be live at: `http://127.0.0.1:8000/docs`
 
-### Frontend Setup & Execution
-Open a second PowerShell window:
-```powershell
-# Navigate to frontend directory
-cd D:\Projects\AutoCX\frontend
+**On Linux / macOS (Bash):**
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# (Optional) Preprocess or retrain
+python src/ml/preprocessing/preprocess_car_data.py
+python src/ml/preprocessing/preprocess_battery_data.py
+python src/ml/training/train_car_model.py
+python src/ml/training/train_battery_model.py
+
+# Run tests
+python -m pytest
+
+# Launch FastAPI server
+uvicorn src.main:app --host 127.0.0.1 --port 8000 --reload
+```
+Interactive Swagger API documentation will be available at: `http://127.0.0.1:8000/docs`
+
+### 3. Frontend Setup & Execution
+Open a second terminal window in the project root:
+
+```bash
+cd frontend
 
 # Install dependencies
 npm install
 
-# Start development server
+# Start Vite development server
 npm run dev
 ```
-The AutoCX interface will be live at: `http://localhost:5173/`
+The AutoCX interactive cockpit web interface will be live at: `http://localhost:5173/`
 
 ---
 
@@ -153,43 +181,46 @@ The AutoCX interface will be live at: `http://localhost:5173/`
 ## 6. Repository Structure
 
 ```
-D:\Projects\AutoCX
-├── Car Data.zip                            # Preserved original archive
-├── 5.+Battery+Data+Set.zip                 # Preserved original archive
+AutoCX/
 ├── backend/
 │   ├── data/
-│   │   ├── raw/                            # Extracted source data
-│   │   │   ├── car_data/
-│   │   │   └── battery_data/
-│   │   └── processed/                      # Cleaned tabular datasets
-│   │       ├── car_resale_processed.csv
-│   │       └── battery_soh_processed.csv
-│   ├── models/                             # Serialized pipelines & schemas
+│   │   ├── raw/                            # All raw datasets included in repo
+│   │   │   ├── car_data/                   # 4 raw vehicle transaction CSV files
+│   │   │   └── battery_data/               # 48 NASA Ames PCoE MATLAB .mat files (34 cells)
+│   │   ├── processed/                      # Cleaned tabular datasets
+│   │   │   ├── car_resale_processed.csv    # 8,900 sanitized records
+│   │   │   └── battery_soh_processed.csv   # 2,542 cycle aging records
+│   │   └── README.md                       # Detailed dataset manifest & lineage
+│   ├── models/                             # Pre-trained pipelines, catalogs & schemas
 │   │   ├── car_resale_model.joblib
 │   │   ├── car_resale_schema.json
 │   │   ├── car_resale_metadata.json
+│   │   ├── car_catalog.json                # Vehicle catalog with on-road calibrated baselines
 │   │   ├── battery_soh_model.joblib
 │   │   ├── battery_soh_schema.json
 │   │   └── battery_soh_metadata.json
 │   ├── src/
-│   │   ├── api/routes.py                   # REST endpoints
-│   │   ├── config/settings.py              # Configuration & paths
+│   │   ├── api/routes.py                   # REST endpoints & validation
+│   │   ├── config/settings.py              # Configuration & dataset paths
 │   │   ├── ml/
-│   │   │   ├── preprocessing/              # Data parsing scripts
+│   │   │   ├── preprocessing/              # Data extraction & cleaning
 │   │   │   └── training/                   # Model fitting & evaluation
-│   │   ├── schemas/                        # Pydantic schemas
-│   │   ├── services/                       # Inference & caching services
+│   │   ├── schemas/                        # Pydantic data models
+│   │   ├── services/                       # Prediction & business logic
 │   │   └── main.py                         # FastAPI application entrypoint
-│   └── tests/                              # Automated test suite
+│   └── tests/                              # Automated test suite (25 test cases)
 ├── frontend/
 │   ├── src/
-│   │   ├── components/common/              # Navbar, Footer
+│   │   ├── components/                     # Cockpit gauges, Dyno curves, UI widgets
 │   │   ├── pages/                          # Landing, Analyze, Results, Insights, History
-│   │   ├── services/                       # API client & localStorage
-│   │   ├── types/                          # TypeScript definitions
-│   │   └── utils/                          # Currency formatters (INR)
+│   │   ├── services/                       # API client & local telemetry state
+│   │   └── types/                          # TypeScript definitions
 │   ├── package.json
 │   └── vite.config.ts
+├── docs/                                   # Project reports, sequence diagrams & figures
+├── notebooks/                              # Jupyter analysis & visualization notebooks
+├── README.md
+└── .gitignore
 ├── docs/
 │   └── dataset-guide.md                    # In-depth dataset manifest & lineage
 ├── README.md

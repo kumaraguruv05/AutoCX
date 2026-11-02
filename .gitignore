@@ -31,11 +31,12 @@ wheels/
 htmlcov/
 catboost_info/
 backend/catboost_info/
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
 
-# Raw Large Datasets and Archives
+# Archives & Redundant Bundles (>100MB or duplicated)
 *.zip
-backend/data/raw/
-backend/data/raw/*
+backend/data/raw/battery_data/5. Battery Data Set/
 
 # Frontend
 frontend/node_modules/

@@ -1,0 +1,81 @@
+sequenceDiagram
+    autonumber
+    actor User as User / Appraiser
+    participant Cockpit as AutoCX React Cockpit (UI)
+    participant Audio as Web Audio Synthesizer
+    participant Router as FastAPI Router (/api/predict)
+    participant Pydantic as Pydantic Validator
+    participant Registry as In-Memory Model Registry
+    participant Catalog as Vehicle Catalog & Feature Eng
+    participant ModA as Module A: Ridge Regressor (Log-T)
+    participant Guardrails as Empirical Guardrails Engine
+    participant ModB as Module B: Random Forest SOH
+
+    %% 1. Input and Cockpit Interaction
+    User->>Cockpit: 1. Input vehicle specs (Brand, Model, Year, KM, Fuel)
+    opt If Fuel == Electric
+        User->>Cockpit: 2. Select EV telemetry preset (Near-New / Fleet / Degraded)
+    end
+    User->>Cockpit: 3. Click "Ignition Push-to-Start"
+    Cockpit->>Audio: 4. Synthesize engine acceleration audio
+    Audio-->>Cockpit: 5. Audio playback confirmed
+
+    %% 2. API Request and Validation
+    Cockpit->>Router: 6. HTTP POST /api/predict/car-value (JSON payload)
+    activate Router
+    Router->>Pydantic: 7. Validate schema bounds (Year 1980-2026, KM, Fuel enum)
+    activate Pydantic
+    Pydantic-->>Router: 8. Validated CarPredictionRequest object
+    deactivate Pydantic
+
+    %% 3. In-Memory Registry Verification
+    Router->>Registry: 9. Verify loaded ML model pipelines (Zero disk I/O)
+    activate Registry
+    Registry-->>Router: 10. Pre-loaded Ridge & Random Forest artifacts
+    deactivate Registry
+
+    %% 4. Knowledge Catalog and Feature Engineering
+    Router->>Catalog: 11. Lookup Brand::Model & synthesize ratio features
+    activate Catalog
+    Note over Catalog: Computes annual_km, power_to_displacement, <br/>extracts model_anchor & segment_anchor (10 segments)
+    Catalog-->>Router: 12. 13-feature engineered DataFrame
+    deactivate Catalog
+
+    %% 5. Module A: Ridge Linear Regression Inference
+    Router->>ModA: 13. Execute car valuation pipeline
+    activate ModA
+    Note over ModA: Ridge Regressor (alpha=10.0) fitted on log-target ln(1+y)<br/>Inverts prediction: exp(z) - 1 (Zero negative prices)
+    ModA-->>Router: 14. Raw predicted baseline resale price (INR)
+    deactivate ModA
+
+    %% 6. Domain Guardrails Application
+    Router->>Guardrails: 15. Apply empirical domain guardrails
+    activate Guardrails
+    Note over Guardrails: • High-Mileage Penalty (>75,000 km)<br/>• Age Retention Ceiling (Maruti +5%, BMW -9%)<br/>• Rolling Chassis Floor (₹1.40L EV, ₹25k ICE)
+    Guardrails-->>Router: 16. Guarded vehicle resale valuation
+    deactivate Guardrails
+
+    %% 7. Conditional Battery Health Diagnostics (Module B)
+    alt If Fuel is Electric AND Battery Telemetry Provided
+        Router->>ModB: 17. Dispatch telemetry (Cycle, Temp, Volt Spread, IR)
+        activate ModB
+        Note over ModB: Random Forest Regressor (Zero-Leakage Cell-Holdout)<br/>Evaluates 28-cell trained model on unseen cell kinematics
+        ModB-->>Router: 18. Predicted SOH % (65.37% fit)
+        deactivate ModB
+        Note over Router: Maps SOH to 5 Diagnostic Condition Tiers<br/>and computes 3 Informational Repair Tiers
+    else Fuel is ICE (Petrol / Diesel / CNG / LPG)
+        Note over Router: Module B inference completely bypassed.<br/>Battery diagnostic state purged.
+    end
+
+    %% 8. Financial Conservation Accounting
+    Note over Router: Compute strict financial conservation:<br/>Total Loss = Original Price - Final Resale<br/>Residual Retention % + Depreciation % == 100.0%
+
+    %% 9. Response Delivery
+    Router-->>Cockpit: 19. HTTP 200 OK (CarPredictionResponse JSON)
+    deactivate Router
+
+    %% 10. Cockpit Visualizer Initialization
+    activate Cockpit
+    Note over Cockpit: • Speedometer & Tachometer roll to values<br/>• F1 Rev-Limiter shift lights animate<br/>• Interactive 15-Year Dyno Telemetry Curve renders<br/>• 3D Skateboard EV chassis displays pack health
+    Cockpit-->>User: 20. Displays interactive results dashboard & audit chips
+    deactivate Cockpit

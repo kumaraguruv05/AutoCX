@@ -2,6 +2,8 @@
 Training script for Car Resale Value Prediction (Module A) with Hierarchy Anchoring.
 Evaluates DummyRegressor, Ridge Linear Regression, Random Forest, CatBoost, and XGBoost.
 Trained with log-target transformation and segment & model price anchors.
+ZERO DATA LEAKAGE: train/test split is performed FIRST; model anchors and preprocessors
+are fit strictly on X_train / train_df.
 Saves the fitted pipeline, feature schema, car catalog, and evaluation report to backend/models/.
 """
 
@@ -12,14 +14,13 @@ import joblib
 import numpy as np
 import pandas as pd
 from sklearn.compose import ColumnTransformer, TransformedTargetRegressor
-from sklearn.dummy import DummyRegressor
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import Ridge
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 import xgboost as xgb
-from catboost import CatBoostRegressor
 
 # Ensure src is in sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
@@ -51,6 +52,12 @@ CATEGORICAL_FEATURES = [
     "owner"
 ]
 
+FEATURE_COLS = [
+    "brand", "model", "year", "vehicle_age", "km_driven", "fuel",
+    "seller_type", "transmission", "owner", "mileage_kmpl", "engine_cc",
+    "max_power_bhp", "seats"
+]
+
 TARGET = "selling_price"
 
 def build_preprocessor():
@@ -80,51 +87,39 @@ def train_and_evaluate():
     df = pd.read_csv(DATA_FILE)
     print(f"Total rows: {len(df)}", flush=True)
     
-    # Precompute model anchors map for CarFeatureEngineer
+    # STEP 1: Train / Test split (80 / 20) FIRST to prevent any target leakage
+    train_df, test_df = train_test_split(df, test_size=0.20, random_state=42)
+    print(f"Training set: {len(train_df)} samples, Test set: {len(test_df)} samples", flush=True)
+    
+    # STEP 2: Compute model anchors ONLY from train_df
     model_anchor_dict = {}
-    for (b, m), p in df.groupby(["brand", "model"])["selling_price"].median().to_dict().items():
+    for (b, m), p in train_df.groupby(["brand", "model"])["selling_price"].median().to_dict().items():
         model_anchor_dict[f"{b}::{m}"] = float(p)
         model_anchor_dict[(b, m)] = float(p)
         
-    # Extract feature matrix and target
-    X = df[["brand", "model", "year", "vehicle_age", "km_driven", "fuel", "seller_type", "transmission", "owner", "mileage_kmpl", "engine_cc", "max_power_bhp", "seats"]]
-    y = df[TARGET].values
-    
-    # Train / Test split (80 / 20) with fixed random seed for reproducible benchmark
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.20, random_state=42
-    )
-    print(f"Training set: {len(X_train)} samples, Test set: {len(X_test)} samples", flush=True)
+    X_train = train_df[FEATURE_COLS]
+    y_train = train_df[TARGET].values
+    X_test = test_df[FEATURE_COLS]
+    y_test = test_df[TARGET].values
     
     candidates = {
-        "DummyRegressor": DummyRegressor(strategy="mean"),
         "LinearRegression": Ridge(alpha=10.0),
-        "RandomForest": xgb.XGBRegressor(
-            booster="gbtree",
-            n_estimators=1,
-            num_parallel_tree=100,
-            subsample=0.8,
-            colsample_bynode=0.8,
-            learning_rate=1.0,
+        "RandomForest": RandomForestRegressor(
+            n_estimators=100,
+            max_depth=16,
+            min_samples_split=4,
             random_state=42,
-            n_jobs=8
-        ),
-        "CatBoost": CatBoostRegressor(
-            iterations=350,
-            learning_rate=0.06,
-            depth=6,
-            random_seed=42,
-            verbose=0
+            n_jobs=4
         ),
         "XGBoost": xgb.XGBRegressor(
-            n_estimators=350,
-            learning_rate=0.05,
+            n_estimators=250,
+            learning_rate=0.06,
             max_depth=6,
             subsample=0.8,
             colsample_bytree=0.8,
             tree_method="hist",
             random_state=42,
-            n_jobs=8
+            n_jobs=4
         )
     }
     
@@ -155,11 +150,71 @@ def train_and_evaluate():
         fitted_pipelines[name] = pipeline
         print(f"    {name} -> MAE: Rs {metrics['mae']:,.2f} | RMSE: Rs {metrics['rmse']:,.2f} | R2: {metrics['r2']:.4f}", flush=True)
     
-    # Select best model based on R2 score (or explicitly prioritize non-linear XGBoost if competitive)
+    # Select best model based on R2 score (or prioritize non-linear XGBoost if competitive)
     best_name = "XGBoost" if "XGBoost" in results and results["XGBoost"]["r2"] >= 0.90 else max(results.keys(), key=lambda k: results[k]["r2"])
     best_pipeline = fitted_pipelines[best_name]
     best_metrics = results[best_name]
     print(f"\n>>> Selected Best Production Model: {best_name} (R2 = {best_metrics['r2']:.4f}, MAE = Rs {best_metrics['mae']:,.2f}) <<<", flush=True)
+    
+    # Compute detailed evaluation breakdowns on test set
+    y_test_pred = np.maximum(best_pipeline.predict(X_test), 15000.0)
+    test_eval_df = test_df.copy()
+    test_eval_df["y_pred"] = y_test_pred
+    test_eval_df["abs_err"] = np.abs(test_eval_df[TARGET] - test_eval_df["y_pred"])
+    test_eval_df["sq_err"] = (test_eval_df[TARGET] - test_eval_df["y_pred"]) ** 2
+    
+    # 1. Segment breakdown
+    segment_metrics = {}
+    for seg, grp in test_eval_df.groupby("segment"):
+        if len(grp) >= 5:
+            seg_mae = float(grp["abs_err"].mean())
+            seg_rmse = float(np.sqrt(grp["sq_err"].mean()))
+            seg_r2 = float(r2_score(grp[TARGET], grp["y_pred"])) if grp[TARGET].nunique() > 1 else 0.0
+            segment_metrics[seg] = {
+                "sample_count": len(grp),
+                "mae": round(seg_mae, 2),
+                "rmse": round(seg_rmse, 2),
+                "r2": round(seg_r2, 4)
+            }
+            
+    # 2. Age group breakdown
+    def age_bucket(age):
+        if age <= 3:
+            return "0-3 Years (Newer)"
+        elif age <= 7:
+            return "4-7 Years (Mid-Age)"
+        else:
+            return "8+ Years (Older)"
+            
+    test_eval_df["age_group"] = test_eval_df["vehicle_age"].apply(age_bucket)
+    age_metrics = {}
+    for grp_name, grp in test_eval_df.groupby("age_group"):
+        age_mae = float(grp["abs_err"].mean())
+        age_rmse = float(np.sqrt(grp["sq_err"].mean()))
+        age_r2 = float(r2_score(grp[TARGET], grp["y_pred"])) if grp[TARGET].nunique() > 1 else 0.0
+        age_metrics[grp_name] = {
+            "sample_count": len(grp),
+            "mae": round(age_mae, 2),
+            "rmse": round(age_rmse, 2),
+            "r2": round(age_r2, 4)
+        }
+        
+    # 3. Fuel group breakdown (specifically EV performance)
+    fuel_metrics = {}
+    for fuel_type, grp in test_eval_df.groupby("fuel"):
+        f_mae = float(grp["abs_err"].mean())
+        f_rmse = float(np.sqrt(grp["sq_err"].mean()))
+        f_r2 = float(r2_score(grp[TARGET], grp["y_pred"])) if len(grp) > 2 and grp[TARGET].nunique() > 1 else None
+        fuel_metrics[fuel_type] = {
+            "sample_count": len(grp),
+            "mae": round(f_mae, 2),
+            "rmse": round(f_rmse, 2),
+            "r2": round(f_r2, 4) if f_r2 is not None else "N/A (low sample count)"
+        }
+        
+    print(f"\nBreakdown by Vehicle Segment:\n{json.dumps(segment_metrics, indent=2)}")
+    print(f"\nBreakdown by Vehicle Age:\n{json.dumps(age_metrics, indent=2)}")
+    print(f"\nBreakdown by Fuel Type:\n{json.dumps(fuel_metrics, indent=2)}")
     
     # Save best model pipeline
     model_artifact_path = os.path.join(MODELS_DIR, "car_resale_model.joblib")
@@ -207,16 +262,20 @@ def train_and_evaluate():
         "training_dataset": "car_resale_processed.csv (CarDekho v3 & v4 unified with Segment & Hierarchy Anchoring)",
         "training_samples": len(X_train),
         "test_samples": len(X_test),
-        "validation_strategy": "80/20 train/test split with log-target transformation & hierarchy anchoring",
+        "validation_strategy": "80/20 train/test holdout split with log-target transformation; model anchors fit strictly on train split",
         "metrics": best_metrics,
         "all_candidate_metrics": results,
+        "segment_breakdown": segment_metrics,
+        "age_breakdown": age_metrics,
+        "fuel_breakdown": fuel_metrics,
         "currency": "INR",
         "target_variable": "selling_price (INR)",
         "limitations": [
-            "Trained and evaluated on Indian pre-owned vehicle transaction records with segment hierarchies.",
-            "Predictions reflect typical vehicle condition; accidents or severe neglect will discount actual market price.",
-            "Post-prediction guardrails enforce empirical physical ceilings and category-specific depreciation curves.",
-            "High luxury or exotic vehicle segments have wider uncertainty bands due to lower trade volume."
+            "Trained and evaluated on Indian pre-owned vehicle listing records with segment hierarchies.",
+            "Market data comprises asking/advertised listing prices rather than audited final bill-of-sale completed transactions.",
+            "Dataset contains limited public electric vehicle transactions (7 EV rows total); zero rows contain verified laboratory/service-centre battery SOH.",
+            "Battery monetary adjustments are therefore labeled provisional with explicit bounds, rather than claimed as fully calibrated from fleet transactions.",
+            "Post-prediction guardrails enforce empirical physical ceilings and category-specific depreciation curves."
         ]
     }
     

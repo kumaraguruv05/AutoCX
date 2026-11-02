@@ -19,25 +19,42 @@ export interface DepreciationInfo {
   original_price: number;
   depreciation_amount: number;
   depreciation_percentage: number;
+  residual_retention_percentage?: number;
+  annualized_loss?: number;
+  value_cost_per_km?: number;
   is_appreciation: boolean;
 }
 
+export interface RepairCostTier {
+  name: string;
+  estimated_cost_inr_range: number[];
+  description: string;
+  is_deducted_from_resale?: boolean;
+}
+
 export interface BatteryValuationImpact {
-  battery_soh: number;
+  battery_soh?: number | null;
   condition_category: string;
   adjustment_inr: number;
   adjustment_percent: number;
+  replacement_risk?: string;
   pack_replacement_risk: string;
+  adjustment_confidence_interval?: number[];
+  is_provisional?: boolean;
   explanation: string;
   rule_precedence?: string;
   is_eol_override?: boolean;
   baseline_market_value?: number;
   replacement_pack_cost_estimate?: number;
+  repair_cost_tiers?: RepairCostTier[];
   chassis_floor_inr?: number;
 }
 
 export interface CarPredictionResponse {
   estimated_resale_price: number;
+  base_vehicle_value?: number;
+  battery_adjustment?: number;
+  replacement_risk?: string;
   currency: string;
   depreciation: DepreciationInfo | null;
   battery_valuation_impact?: BatteryValuationImpact | null;

@@ -1,0 +1,113 @@
+@startuml
+autonumber
+skinparam style strictuml
+skinparam sequenceMessageAlign center
+skinparam BoxPadding 10
+skinparam ParticipantPadding 10
+
+actor "User / Appraiser" as User
+box "Presentation Tier" #E3F2FD
+participant "AutoCX React Cockpit\n(UI)" as Cockpit
+participant "Web Audio\nSynthesizer" as Audio
+end box
+
+box "API & Business Logic Tier" #E8F5E9
+participant "FastAPI Router\n(/api/predict)" as Router
+participant "Pydantic\nValidator" as Pydantic
+participant "In-Memory\nRegistry" as Registry
+participant "Catalog & Feature\nEngineer" as Catalog
+participant "Domain Guardrails\nEngine" as Guardrails
+end box
+
+box "Machine Learning Analytics Tier" #FFF3E0
+participant "Module A: Ridge\nValuation Pipeline" as ModA
+participant "Module B: Random Forest\nBattery SOH Engine" as ModB
+end box
+
+User -> Cockpit : 1. Input vehicle specs (Brand, Model, Year, KM, Fuel)
+opt If Fuel == Electric
+    User -> Cockpit : 2. Select EV telemetry preset (Near-New / Fleet / Degraded)
+end
+User -> Cockpit : 3. Click "Ignition Push-to-Start"
+Cockpit -> Audio : 4. Synthesize engine acceleration audio
+Audio --> Cockpit : 5. Audio playback confirmed
+
+Cockpit -> Router : 6. HTTP POST /api/predict/car-value (JSON payload)
+activate Router
+Router -> Pydantic : 7. Validate schema bounds (Year 1980-2026, KM, Fuel enum)
+activate Pydantic
+Pydantic --> Router : 8. Validated CarPredictionRequest
+deactivate Pydantic
+
+Router -> Registry : 9. Verify loaded ML model pipelines (Zero disk I/O)
+activate Registry
+Registry --> Router : 10. Pre-loaded Ridge & Random Forest artifacts
+deactivate Registry
+
+Router -> Catalog : 11. Lookup Brand::Model & synthesize ratio features
+activate Catalog
+note over Catalog
+  Computes annual_km, power_to_displacement,
+  extracts model_anchor & segment_anchor (10 segments)
+end note
+Catalog --> Router : 12. 13-feature engineered DataFrame
+deactivate Catalog
+
+Router -> ModA : 13. Execute car valuation pipeline
+activate ModA
+note over ModA
+  Ridge Regressor (alpha=10.0) fitted on log-target ln(1+y)
+  Inverts prediction: exp(z) - 1 (Zero negative prices)
+end note
+ModA --> Router : 14. Raw predicted baseline resale price (INR)
+deactivate ModA
+
+Router -> Guardrails : 15. Apply empirical domain guardrails
+activate Guardrails
+note over Guardrails
+  - High-Mileage Wear Penalty (>75,000 km)
+  - Age Retention Ceiling (Maruti +5%, BMW -9%)
+  - Rolling Chassis Floor (₹1.40L EV, ₹25k ICE)
+end note
+Guardrails --> Router : 16. Guarded vehicle resale valuation
+deactivate Guardrails
+
+alt If Fuel is Electric AND Battery Telemetry Provided
+    Router -> ModB : 17. Dispatch telemetry (Cycle, Temp, Volt Spread, IR)
+    activate ModB
+    note over ModB
+      Random Forest Regressor (Zero-Leakage Cell-Holdout)
+      Evaluates 28-cell trained model on unseen cell kinematics
+    end note
+    ModB --> Router : 18. Predicted SOH % (65.37% fit)
+    deactivate ModB
+    note over Router
+      Maps SOH to 5 Diagnostic Condition Tiers
+      and computes 3 Informational Repair Tiers
+    end note
+else Fuel is ICE (Petrol / Diesel / CNG / LPG)
+    note over Router
+      Module B inference completely bypassed.
+      Battery diagnostic state purged.
+    end note
+end
+
+note over Router
+  Compute strict financial conservation:
+  Total Loss = Original Price - Final Resale
+  Residual Retention % + Depreciation % == 100.0%
+end note
+
+Router --> Cockpit : 19. HTTP 200 OK (CarPredictionResponse JSON)
+deactivate Router
+
+activate Cockpit
+note over Cockpit
+  - Speedometer & Tachometer roll to values
+  - F1 Rev-Limiter shift lights animate
+  - Interactive 15-Year Dyno Telemetry Curve renders
+  - 3D Skateboard EV chassis displays pack health
+end note
+Cockpit --> User : 20. Displays interactive results dashboard & audit chips
+deactivate Cockpit
+@enduml

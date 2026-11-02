@@ -143,7 +143,7 @@ export const ChassisBuildPlate: React.FC<ChassisBuildPlateProps> = ({
                 <span>{algorithm}</span>
               </div>
               <span className="text-[10px] text-neutral-400 block mt-0.5">
-                R² 0.9676 • Certified Zero Leakage
+                R² 0.80 • Holdout Validated
               </span>
             </div>
           </div>

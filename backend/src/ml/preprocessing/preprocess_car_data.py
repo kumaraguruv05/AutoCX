@@ -160,54 +160,13 @@ def classify_segment(brand: str, model: str, engine_cc: float = 0, max_power_bhp
     # 10. Default to Hatchback (Swift, i20, Polo, Baleno, Tiago, etc.)
     return "Hatchback"
 
-def estimate_typical_original_price(brand: str, model: str, segment: str, median_selling: float) -> float:
-    brand = str(brand).strip().title()
-    model = str(model).strip()
-    full_name = f"{brand} {model}".lower()
-    
-    # Specific known invoice baselines
-    if "800" in full_name:
-        return 235000.0
-    if "nano" in full_name:
-        return 210000.0
-    if "alto" in full_name:
-        return 380000.0
-    if "endeavour" in full_name:
-        if "3.2" in full_name:
-            return 4100000.0
-        elif "2.2" in full_name:
-            return 3200000.0
-        return 2800000.0
-    if "fortuner" in full_name:
-        return 3800000.0
-    if "swift" in full_name:
-        return 750000.0
-    if "dzire" in full_name:
-        return 820000.0
-    if "city" in full_name:
-        return 1300000.0
-    if "creta" in full_name:
-        return 1450000.0
-    if "innova" in full_name:
-        return 2200000.0
-    if "i20" in full_name:
-        return 880000.0
-        
-    # Segment-based heuristic multiplier based on historical depreciation median
-    segment_multiplier = {
-        "Micro / Entry Hatchback": 3.8,
-        "Hatchback": 2.2,
-        "Compact Sedan": 2.2,
-        "Midsize Sedan": 2.3,
-        "Sub-Compact SUV": 2.0,
-        "Compact / Midsize SUV": 2.1,
-        "Full-Size / Premium SUV": 2.5,
-        "Executive / Luxury Sedan": 2.8,
-        "Luxury SUV": 2.8,
-        "MUV / MPV / Van": 2.0
-    }
-    multiplier = segment_multiplier.get(segment, 2.2)
-    return float(round(max(median_selling * multiplier, 250000.0), -3))
+def estimate_typical_original_price(brand: str, model: str, segment: str, median_selling: float, engine_cc: float = 1197.0, max_power_bhp: float = 82.0) -> float:
+    try:
+        from src.ml.preprocessing.calibrate_car_catalog import get_calibrated_price
+        return get_calibrated_price(brand, model, segment, engine_cc, max_power_bhp, median_selling)
+    except Exception:
+        from .calibrate_car_catalog import get_calibrated_price
+        return get_calibrated_price(brand, model, segment, engine_cc, max_power_bhp, median_selling)
 
 def clean_car_details_v3(filepath: str) -> pd.DataFrame:
     df = pd.read_csv(filepath)
@@ -393,7 +352,7 @@ def run_car_preprocessing():
             st = int(round(m_df["seats"].median()))
             med_sell = float(round(m_df["selling_price"].median(), 2))
             
-            typ_orig = estimate_typical_original_price(brand, model, seg, med_sell)
+            typ_orig = estimate_typical_original_price(brand, model, seg, med_sell, eng_cc, bhp)
             
             key = f"{brand}::{model}"
             catalog[key] = {

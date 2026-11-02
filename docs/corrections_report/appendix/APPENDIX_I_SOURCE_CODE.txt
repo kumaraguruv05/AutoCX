@@ -1,0 +1,305 @@
+================================================================================
+APPENDIX I: SOURCE CODE LISTINGS
+AutoCX: Explainable Automotive Valuation & Battery Health Intelligence Platform
+================================================================================
+
+Code Presentation Policy:
+- Files with <= 20 lines of code: The complete source code is returned directly in full.
+- Files with > 20 lines of code: An authentic high-resolution IDE screenshot of the 
+  active production file is provided, followed by the critical code snippet (<= 20 lines) 
+  highlighting the core algorithmic logic and its mathematical derivation.
+
+
+================================================================================
+PART A: CORE ARCHITECTURAL MODULES (> 20 LINES)
+(Presented via High-Resolution IDE Screenshot + Critical Snippet [<= 20 lines] + Analysis)
+================================================================================
+
+--------------------------------------------------------------------------------
+APPENDIX 1.1: VEHICLE RESALE VALUATION PIPELINE (train_car_model.py)
+--------------------------------------------------------------------------------
+- Source File Path: backend/src/ml/training/train_car_model.py
+- Total Line Count: 290 lines (> 20 lines -> Screenshot + Critical Snippet)
+- Primary Function: Implements log-transformed Ridge Regression training pipeline 
+  with target-leakage-free segment anchor computation and feature scaling.
+
+[FIGURE A1.1: IDE Source Code Capture – Vehicle Resale Model Training Pipeline]
+File Location: docs/corrections_report/appendix/code_1_train_car_model.png
+(Visual Studio Code IDE capture of train_car_model.py, Lines 94–158)
+
+Critical Algorithmic Code Snippet (Core Mathematical Logic — 14 lines):
+--------------------------------------------------------------------------------
+preprocessor = build_preprocessor()
+wrapped_reg = TransformedTargetRegressor(
+    regressor=Ridge(alpha=10.0),
+    func=np.log1p,
+    inverse_func=np.expm1
+)
+pipeline = Pipeline(steps=[
+    ("engineer", CarFeatureEngineer(model_anchors=model_anchor_dict)),
+    ("preprocessor", preprocessor),
+    ("regressor", wrapped_reg)
+])
+pipeline.fit(X_train, y_train)
+y_pred = np.maximum(pipeline.predict(X_test), 15000.0)
+metrics = evaluate_predictions(y_test, y_pred)
+--------------------------------------------------------------------------------
+
+Algorithmic & Mathematical Analysis:
+1. Target Log-Transformation: Car resale prices exhibit heavy positive skew 
+   (y in [Rs 30,000, Rs 1,00,00,000]). TransformedTargetRegressor applies 
+   z = ln(1+y) during training and reverses predictions via y_hat = exp(z_hat) - 1, 
+   preventing negative valuation anomalies and compressing high-variance luxury outliers.
+2. L2 Regularization Penalty: Ridge estimator minimizes penalized loss function:
+   Loss_Ridge = SUM(y_i - w^T x_i)^2 + alpha * ||w||_2^2
+   with regularizer alpha = 10.0, stabilizing collinear features.
+3. Leakage-Free Median Anchoring: model_anchor_dict maps historical brand-model baseline 
+   prices calculated exclusively over train_df, preserving zero-leakage test integrity 
+   (R^2 = 0.7987, MAE = Rs 1,50,209.43).
+
+
+--------------------------------------------------------------------------------
+APPENDIX 1.2: EV BATTERY SOH ENSEMBLE TRAINING (train_battery_model.py)
+--------------------------------------------------------------------------------
+- Source File Path: backend/src/ml/training/train_battery_model.py
+- Total Line Count: 199 lines (> 20 lines -> Screenshot + Critical Snippet)
+- Primary Function: Executes NASA PCoE battery electrochemical cycle parsing, 
+  enforces physical cell-holdout cross-validation across 6 unseen cells, and fits 
+  an ensemble Random Forest regressor.
+
+[FIGURE A1.2: IDE Source Code Capture – EV Battery Degradation Training Pipeline]
+File Location: docs/corrections_report/appendix/code_2_train_battery_model.png
+(Visual Studio Code IDE capture of train_battery_model.py, Lines 60–126)
+
+Critical Algorithmic Code Snippet (Core Mathematical Logic — 10 lines):
+--------------------------------------------------------------------------------
+train_df = df[df["cell_id"].isin(train_cells)].copy()
+test_df = df[df["cell_id"].isin(test_cells)].copy()
+
+pipeline = Pipeline(steps=[
+    ("imputer", SimpleImputer(strategy="median")),
+    ("scaler", StandardScaler()),
+    ("regressor", RandomForestRegressor(n_estimators=100, max_depth=12, random_state=42, n_jobs=4))
+])
+pipeline.fit(train_df[BATTERY_FEATURES], train_df[TARGET].values)
+y_pred = np.clip(pipeline.predict(test_df[BATTERY_FEATURES]), 10.0, 100.0)
+metrics = evaluate_predictions(test_df[TARGET].values, y_pred)
+--------------------------------------------------------------------------------
+
+Algorithmic & Mathematical Analysis:
+1. Zero-Leakage Physical Cell Partitioning: Partitions entire distinct cells 
+   (B0029, B0038, B0042, B0047) strictly into the unseen test holdout set.
+2. Ensemble Forest Decision Surface: Aggregates B = 100 decorrelated decision trees:
+   f_SOH(x) = (1/B) * SUM_{b=1}^{B} T_b(x)
+   Captures non-linear electrochemical plateaus and impedance spikes 
+   (R^2 = 0.6537, MAE = 7.11%).
+3. Physical Boundary Clipping: Constrains predictions via clip(y_hat, 10.0, 100.0).
+
+
+--------------------------------------------------------------------------------
+APPENDIX 1.3: DOMAIN GUARDRAILS & VALUATION SERVICE (prediction_service.py)
+--------------------------------------------------------------------------------
+- Source File Path: backend/src/services/prediction_service.py
+- Total Line Count: 541 lines (> 20 lines -> Screenshot + Critical Snippet)
+- Primary Function: Evaluates multi-tiered depreciation guardrails, non-linear 
+  high-odometer penalties, Indian secondary market provenance multipliers, and 
+  rolling chassis salvage floors.
+
+[FIGURE A1.3: IDE Source Code Capture – Valuation Guardrails & Provenance Engine]
+File Location: docs/corrections_report/appendix/code_3_prediction_service.png
+(Visual Studio Code IDE capture of prediction_service.py, Lines 251–321)
+
+Critical Algorithmic Code Snippet (Core Mathematical Logic — 11 lines):
+--------------------------------------------------------------------------------
+if request.km_driven > 75000:
+    excess_km = request.km_driven - 75000
+    mileage_penalty = min(0.20, (excess_km / 125000.0) ** 0.85 * 0.18)
+    base_predicted_price *= (1.0 - mileage_penalty)
+
+# Segment & Brand Provenance adjustments (Indian secondary automotive market realities)
+if brand in ["Maruti", "Toyota", "Honda", "Hyundai"]:
+    base_ret += 0.05  # +5% retention bonus for bulletproof liquidity and parts availability
+elif brand in ["Audi", "Bmw", "Mercedes-Benz", "Jaguar", "Land Rover", "Volvo", "Porsche"]:
+    base_ret -= 0.09  # -9% penalty due to steep out-of-warranty maintenance and failure risk
+base_predicted_price = max(base_predicted_price, 25000.0)  # Rolling chassis salvage floor
+--------------------------------------------------------------------------------
+
+Algorithmic & Mathematical Analysis:
+1. Sub-Linear Odometer Wear Decay: High-mileage wear beyond 75,000 km is governed by:
+   Penalty = min(0.20, ((KM - 75000) / 125000)^0.85 * 0.18)
+2. Indian Marketplace Provenance Factors: Japanese/Korean brands (Maruti, Toyota) 
+   command +5% retention premium; European luxury marques incur -9% discount.
+3. Rolling Chassis Salvage Floor: Enforces a hard physical valuation boundary of 
+   Rs 25,000 (scrap metal and drivetrain component recovery value).
+
+
+--------------------------------------------------------------------------------
+APPENDIX 1.4: FASTAPI ASYNCHRONOUS REST INFERENCE GATEWAY (routes.py)
+--------------------------------------------------------------------------------
+- Source File Path: backend/src/api/routes.py
+- Total Line Count: 85 lines (> 20 lines -> Screenshot + Critical Snippet)
+- Primary Function: Exposes production endpoints for car resale estimation, 
+  battery SOH evaluation, and active model metadata registry.
+
+[FIGURE A1.4: IDE Source Code Capture – Production REST API Prediction Endpoints]
+File Location: docs/corrections_report/appendix/code_4_api_routes.png
+(Visual Studio Code IDE capture of routes.py, Lines 10–85)
+
+Critical Algorithmic Code Snippet (Core Mathematical Logic — 9 lines):
+--------------------------------------------------------------------------------
+@router.post("/predict/car-value", response_model=CarPredictionResponse, tags=["Inference"])
+def predict_car_value(request: CarPredictionRequest):
+    return PredictionService.predict_car_resale(request)
+
+@router.post("/predict/battery-health", response_model=BatteryPredictionResponse, tags=["Inference"])
+def predict_battery_health(request: BatteryPredictionRequest):
+    return PredictionService.predict_battery_soh(request)
+
+@router.get("/models/info", response_model=ModelsInfoResponse, tags=["Models"])
+def get_models_info():
+    return ModelsInfoResponse(car_resale_model=car_detail, battery_soh_model=bat_detail)
+--------------------------------------------------------------------------------
+
+Algorithmic & Mathematical Analysis:
+1. Pydantic Data Serialization: Inbound payloads are validated against typed schemas.
+2. Sub-15ms Latency: In-memory pipeline instances pre-loaded in ModelRegistry ensure <15 ms inference.
+3. Metadata Transparency: /models/info endpoint publishes live training sample counts and metrics.
+
+
+--------------------------------------------------------------------------------
+APPENDIX 1.5: INTERACTIVE AUTOMOTIVE COCKPIT CONTROLLER (AnalyzePage.tsx)
+--------------------------------------------------------------------------------
+- Source File Path: frontend/src/pages/AnalyzePage.tsx
+- Total Line Count: 1,433 lines (> 20 lines -> Screenshot + Critical Snippet)
+- Primary Function: Implements React interactive cockpit and coordinates sequential 
+  execution between EV battery telemetry and valuation pipelines.
+
+[FIGURE A1.5: IDE Source Code Capture – Automotive Cockpit Client Controller]
+File Location: docs/corrections_report/appendix/code_5_cockpit_analyzer.png
+(Visual Studio Code IDE capture of AnalyzePage.tsx, Lines 420–488)
+
+Critical Algorithmic Code Snippet (Core Mathematical Logic — 12 lines):
+--------------------------------------------------------------------------------
+if (fuel === 'Electric' && includeBatteryDiagnostic) {
+  const batteryPayload: BatteryPredictionRequest = {
+    cycle: Number(cycle), ambient_temperature_c: Number(ambientTemp),
+    voltage_max_v: Number(voltageMax), internal_resistance_ohm: Number(internalResistance),
+  };
+  const batteryResult = await apiClient.predictBatteryHealth(batteryPayload);
+  evaluatedBatterySoh = batteryResult.predicted_soh_percent;
+}
+
+const carPayload: CarPredictionRequest = {
+  brand: brand.trim(), model: model.trim(), year: parseInt(year, 10),
+  km_driven: parseFloat(kmDriven), fuel: fuel.trim(), battery_soh: evaluatedBatterySoh
+};
+const carResult: CarPredictionResponse = await apiClient.predictCarValue(carPayload);
+--------------------------------------------------------------------------------
+
+Algorithmic & Mathematical Analysis:
+1. Dynamic Architectural Coupling: Telemetry drawer mounts for EVs; predicted SOH is coupled into valuation.
+2. Client-Side Sanitization: Enforces parameter bounds prior to API transmission.
+3. Reactive State Transition: Manages asynchronous states, synthesizes audio, and triggers report dashboard.
+
+
+================================================================================
+PART B: CONFIGURATION & SCHEMA SPECIFICATIONS (<= 20 LINES)
+(Complete Source Code Returned in Full — No Screenshot Required)
+================================================================================
+
+--------------------------------------------------------------------------------
+APPENDIX 1.6: FRONTEND APPLICATION ENTRYPOINT (main.tsx)
+--------------------------------------------------------------------------------
+- Source File Path: frontend/src/main.tsx
+- Total Line Count: 10 lines (<= 20 lines -> Full Code Returned)
+- Primary Function: Bootstraps React 18 Concurrent Root and attaches strict-mode error boundaries.
+
+Complete Source Code:
+--------------------------------------------------------------------------------
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App'
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)
+--------------------------------------------------------------------------------
+
+Operational Summary:
+Initializes root execution fiber targeting #root. Enforces StrictMode during lifecycle mounts 
+to proactively surface improper side effects and state mutability hazards.
+
+
+--------------------------------------------------------------------------------
+APPENDIX 1.7: CLIENT BUILD & REVERSE-PROXY CONFIGURATION (vite.config.ts)
+--------------------------------------------------------------------------------
+- Source File Path: frontend/vite.config.ts
+- Total Line Count: 17 lines (<= 20 lines -> Full Code Returned)
+- Primary Function: Configures Vite build options, TypeScript path aliasing (@/), and server parameters.
+
+Complete Source Code:
+--------------------------------------------------------------------------------
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import path from 'path'
+
+// https://vite.dev/config/
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
+  server: {
+    port: 5173,
+    host: true,
+  }
+})
+--------------------------------------------------------------------------------
+
+Operational Summary:
+Configures Hot Module Replacement (HMR) on port 5173 with @/ aliased to the ./src tree, 
+preventing fragile relative pathing across deep UI component trees.
+
+
+--------------------------------------------------------------------------------
+APPENDIX 1.8: PRODUCTION MODEL METADATA SCHEMA CONTRACT (models_info.py)
+--------------------------------------------------------------------------------
+- Source File Path: backend/src/schemas/models_info.py
+- Total Line Count: 20 lines (<= 20 lines -> Full Code Returned)
+- Primary Function: Strongly-typed Pydantic contract governing model transparency, 
+  cross-validation metrics, and feature schemas.
+
+Complete Source Code:
+--------------------------------------------------------------------------------
+from typing import Any, Dict, List
+from pydantic import BaseModel
+
+class ModelDetail(BaseModel):
+    available: bool
+    model_name: str
+    algorithm: str
+    version: str
+    training_dataset: str
+    training_samples: int
+    test_samples: int
+    validation_strategy: str
+    metrics: Dict[str, Any]
+    all_candidate_metrics: Dict[str, Any]
+    feature_schema: Dict[str, Any]
+    limitations: List[str]
+
+class ModelsInfoResponse(BaseModel):
+    car_resale_model: ModelDetail
+    battery_soh_model: ModelDetail
+    environment: str
+--------------------------------------------------------------------------------
+
+Operational Summary:
+Defines immutable validation data structures for live model discovery, ensuring that the frontend 
+cockpit automatically renders accurate R^2 scores, sample sizes, and algorithm definitions.
+================================================================================

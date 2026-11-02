@@ -34,8 +34,6 @@ import {
   BatteryPredictionResponse,
   VehicleProfile
 } from '@/types/api';
-import { F1ShiftLights } from '@/components/cockpit/F1ShiftLights';
-import { EVSkateboardChassis } from '@/components/cockpit/EVSkateboardChassis';
 import { DrivingLoadingModal } from '@/components/cockpit/DrivingLoadingModal';
 
 // Typical real-world single-charge ranges for EV models (in km)
@@ -1003,33 +1001,33 @@ export const AnalyzePage: React.FC = () => {
 
             {includeBatteryDiagnostic ? (
               <div className="space-y-6">
-                {/* Active EV Resale Coupling Callout */}
+                {/* Active EV Resale Decoupled Diagnostics Callout */}
                 <div className="p-3.5 rounded-xl bg-cyan-50 border border-cyan-300 text-xs text-slate-800 flex items-start gap-2.5">
                   <Zap className="w-4 h-4 text-cyan-600 shrink-0 mt-0.5" />
                   <div className="space-y-0.5 font-mono">
-                    <span className="font-bold text-slate-950 block">Active EV Battery Resale Valuation Coupling</span>
+                    <span className="font-bold text-slate-950 block">Independent EV Battery Diagnostic Inspection</span>
                     <p className="text-[11px] text-slate-600 leading-relaxed">
-                      Battery State of Health directly modulates vehicle resale value. Pristine packs (&gt;90% SOH) secure a market retention bonus, while degraded packs (&lt;70% SOH) incur realistic pack-replacement deductions.
+                      EV resale price is calculated directly from core automotive market parameters (age, odometer, brand, model) just like standard vehicles, without battery penalties. Battery State of Health (SOH) is evaluated independently by Random Forest as an engineering advisory report.
                     </p>
                   </div>
                 </div>
 
-                {/* AI Odometer & Range Telemetry Derivation Cockpit */}
-                <div className="p-5 rounded-2xl bg-white border border-cyan-200 shadow-sm space-y-5">
+                {/* Battery Telemetry Derivation Section */}
+                <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-5">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-lg bg-cyan-600 text-white flex items-center justify-center shadow-xs">
-                        <Cpu className="w-4 h-4 animate-pulse" />
+                      <div className="w-8 h-8 rounded-lg bg-black text-white flex items-center justify-center shadow-xs">
+                        <Activity className="w-4 h-4 text-white" />
                       </div>
                       <div>
                         <h3 className="text-sm font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                          <span>Autonomous Battery Telemetry Generator</span>
-                          <span className="text-[10px] text-cyan-700 bg-cyan-50 border border-cyan-200 px-2 py-0.5 rounded font-mono font-semibold">
-                            AI Dynamic Derivation
+                          <span>Battery Telemetry Derivation</span>
+                          <span className="text-[10px] text-slate-700 bg-slate-100 border border-slate-300 px-2 py-0.5 rounded font-mono font-semibold">
+                            Electrochemical Kinematics
                           </span>
                         </h3>
                         <p className="text-[11px] text-slate-500 font-mono">
-                          Auto-calibrated from Odometer Accumulation ({kmDriven || '0'} km) & Single-Charge Range
+                          Computed from odometer wear ({kmDriven || '0'} km) and real-world range benchmark.
                         </p>
                       </div>
                     </div>
@@ -1040,12 +1038,12 @@ export const AnalyzePage: React.FC = () => {
                         onClick={() => setUseAutoBatteryTelemetry(!useAutoBatteryTelemetry)}
                         className={`text-xs font-mono px-3 py-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 ${
                           useAutoBatteryTelemetry
-                            ? 'bg-cyan-50 border-cyan-300 text-cyan-800 font-semibold'
-                            : 'bg-slate-100 border-slate-300 text-slate-700'
+                            ? 'bg-slate-900 border-slate-900 text-white font-semibold'
+                            : 'bg-white border-slate-300 text-slate-700 hover:border-slate-400'
                         }`}
                       >
-                        <Zap className="w-3.5 h-3.5 text-cyan-600" />
-                        <span>{useAutoBatteryTelemetry ? '⚡ Auto-Pilot Active' : '🛠️ Manual Sensor Mode'}</span>
+                        <Zap className="w-3.5 h-3.5 text-current" />
+                        <span>{useAutoBatteryTelemetry ? 'Auto-Derived from Mileage' : 'Manual Telemetry Mode'}</span>
                       </button>
                     </div>
                   </div>
@@ -1337,18 +1335,8 @@ export const AnalyzePage: React.FC = () => {
                   )}
                 </div>
 
-                {/* Interactive Motorsport EV Skateboard Chassis Blueprint */}
-                <EVSkateboardChassis
-                  sohPercent={Math.max(45, Math.min(100, Math.round((100 - cycle * 0.048 - (internalResistance - 0.050) * 80) * 10) / 10))}
-                  cycleCount={cycle}
-                  voltageSpread={Math.round((voltageMax - voltageMin) * 100) / 100}
-                  tempPeak={tempMax}
-                  ambientTemp={ambientTemp}
-                  internalResistance={internalResistance}
-                />
-
-                <div className="p-3.5 rounded-xl bg-cyan-50/70 border border-cyan-200 text-xs text-slate-700 flex items-start gap-2.5 font-mono">
-                  <Info className="w-4 h-4 text-cyan-700 shrink-0 mt-0.5" />
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 flex items-start gap-2.5 font-mono">
+                  <Info className="w-4 h-4 text-slate-600 shrink-0 mt-0.5" />
                   <span>
                     AutoCX estimates battery SOH using Li-ion cell aging kinetics from NASA Ames PCoE research. Parameters update automatically as you adjust vehicle mileage and EV single-charge range.
                   </span>
@@ -1375,9 +1363,12 @@ export const AnalyzePage: React.FC = () => {
           </div>
         ) : null}
 
-        {/* Cockpit Action Console: F1 Shift Lights & Refined Ignition Button */}
+        {/* Action Console: Reset & Submission */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-5 pt-6 border-t border-slate-200">
-          <F1ShiftLights isRevving={isLoading} intensity={isLoading ? 10 : 5} showLabels />
+          <div className="flex items-center gap-2 text-xs font-mono text-slate-500">
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            <span>AutoCX Valuation Pipeline • Indian Secondary Market Calibrated</span>
+          </div>
 
           <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto justify-end">
             <button
@@ -1396,36 +1387,29 @@ export const AnalyzePage: React.FC = () => {
                 setEvRangeKm('260');
                 setUseAutoBatteryTelemetry(true);
               }}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white hover:bg-slate-100 text-slate-700 hover:text-black border border-slate-300 hover:border-black text-xs font-mono transition-all duration-200 shadow-2xs group cursor-pointer"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white hover:bg-slate-100 text-slate-700 hover:text-black border border-slate-300 hover:border-black text-xs font-mono btn-secondary-animated group cursor-pointer"
             >
-              <RotateCcw className="w-3.5 h-3.5 group-hover:-rotate-90 transition-transform duration-300" />
+              <RotateCcw className="w-3.5 h-3.5 group-hover:-rotate-180 transition-transform duration-500" />
               <span>Reset Defaults</span>
             </button>
 
-            {/* Refined Motorsport Ignition Button */}
+            {/* Premium Animated Submission Button */}
             <button
               type="submit"
               disabled={isLoading}
-              className="relative group overflow-hidden w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-3.5 rounded-xl bg-neutral-950 hover:bg-black text-white font-mono text-xs font-bold tracking-wider uppercase border border-neutral-800 hover:border-cyan-500/50 shadow-xl shadow-black/20 hover:shadow-cyan-500/10 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-3.5 rounded-xl bg-black hover:bg-neutral-900 text-white font-mono text-xs font-bold tracking-wider uppercase border border-black btn-primary-animated group disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
-              {/* Subtle top chamfer highlight line */}
-              <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-cyan-400/40 to-transparent pointer-events-none" />
-
               {isLoading ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
-                  <span className="text-cyan-300 tracking-wider">CRANKING ENGINE...</span>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span className="tracking-wider">CALIBRATING VALUATION...</span>
                 </>
               ) : (
                 <>
-                  {/* Discreet ignition status indicator ring */}
-                  <div className="w-5 h-5 rounded-full bg-neutral-900 border border-neutral-700 flex items-center justify-center shadow-inner group-hover:border-cyan-400 transition-colors">
-                    <Power className="w-3 h-3 text-cyan-400 group-hover:scale-110 transition-transform duration-200" />
-                  </div>
-                  <span className="tracking-wider text-neutral-100 group-hover:text-white">
-                    START VALUATION & SOH PIPELINE
+                  <span className="tracking-wider text-white">
+                    RUN VEHICLE VALUATION
                   </span>
-                  <ArrowRight className="w-3.5 h-3.5 text-neutral-400 group-hover:text-cyan-400 group-hover:translate-x-1 transition-all duration-200" />
+                  <ArrowRight className="w-4 h-4 text-neutral-400 group-hover:text-white group-hover:translate-x-1.5 transition-transform duration-300" />
                 </>
               )}
             </button>
@@ -1433,13 +1417,15 @@ export const AnalyzePage: React.FC = () => {
         </div>
     </form>
 
-    {/* 2D Parallax Driving Loading Modal */}
+    {/* Full-Screen Black-to-White Loading Screen */}
     <DrivingLoadingModal
       isOpen={showDrivingModal}
       brand={brand}
       model={model}
       fuel={fuel}
       segment={currentProfile?.segment}
+      year={year}
+      kmDriven={kmDriven}
       onComplete={handleDrivingComplete}
     />
   </div>

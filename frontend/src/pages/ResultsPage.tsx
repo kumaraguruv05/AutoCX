@@ -24,7 +24,6 @@ import { formatINR, formatIndianDenomination, formatPercent } from '@/utils/form
 import { storageService } from '@/services/storage';
 import { CockpitGauges } from '@/components/cockpit/CockpitGauges';
 import { DynoTelemetryCurve } from '@/components/cockpit/DynoTelemetryCurve';
-import { EVSkateboardChassis } from '@/components/cockpit/EVSkateboardChassis';
 import { ChassisBuildPlate } from '@/components/cockpit/ChassisBuildPlate';
 import { OdometerRollingNumber } from '@/components/cockpit/OdometerRollingNumber';
 
@@ -134,23 +133,23 @@ export const ResultsPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200">
         <button
           onClick={() => navigate('/analyze', { state: { editAnalysis: currentAnalysis } })}
-          className="inline-flex items-center gap-2 text-xs font-mono text-slate-600 hover:text-black transition-all hover:-translate-x-0.5 cursor-pointer self-start sm:self-auto"
+          className="inline-flex items-center gap-2 text-xs font-mono text-slate-600 hover:text-black transition-all duration-200 group cursor-pointer self-start sm:self-auto"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1.5 transition-transform duration-200" />
           <span>Back to Analysis Form</span>
         </button>
 
         <div className="flex items-center gap-3">
           <Link
             to="/history"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-black hover:bg-neutral-800 text-white text-xs font-mono transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] shadow-sm hover:shadow-lg cursor-pointer"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-black hover:bg-neutral-900 text-white text-xs font-mono btn-primary-animated cursor-pointer"
           >
             <History className="w-3.5 h-3.5 text-neutral-300" />
             <span>Saved Analyses</span>
           </Link>
           <button
             onClick={() => window.print()}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-800 hover:text-black border border-slate-300 hover:border-black text-xs font-mono transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] shadow-2xs cursor-pointer"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-800 hover:text-black border border-slate-300 hover:border-black text-xs font-mono btn-secondary-animated cursor-pointer"
           >
             <Share2 className="w-3.5 h-3.5 text-slate-600" />
             <span>Print Report</span>
@@ -266,14 +265,14 @@ export const ResultsPage: React.FC = () => {
                 <div className="flex justify-between text-xs font-mono">
                   <span className="text-slate-600">Residual Value Retention:</span>
                   <span className="text-slate-900 font-bold">
-                    {Math.max(0, 100 - dep.depreciation_percentage).toFixed(1)}% of original
+                    {(dep.residual_retention_percentage ?? Math.max(0, 100 - dep.depreciation_percentage)).toFixed(1)}% of original
                   </span>
                 </div>
                 <div className="w-full bg-slate-100 rounded-full h-3.5 border border-slate-200 overflow-hidden p-0.5">
                   <div
                     className="bg-black h-full rounded-full transition-all duration-1000"
                     style={{
-                      width: `${Math.min(100, Math.max(5, 100 - dep.depreciation_percentage))}%`,
+                      width: `${Math.min(100, Math.max(5, dep.residual_retention_percentage ?? (100 - dep.depreciation_percentage)))}%`,
                     }}
                   />
                 </div>
@@ -284,13 +283,13 @@ export const ResultsPage: React.FC = () => {
                 <div className="flex justify-between text-slate-700">
                   <span>Annualized Loss Rate:</span>
                   <span className="text-slate-900 font-bold">
-                    ~{formatINR(dep.depreciation_amount / Math.max(1, carResult.vehicle_summary.vehicle_age))} / yr
+                    ~{formatINR(dep.annualized_loss ?? (dep.depreciation_amount / Math.max(1, carResult.vehicle_summary.vehicle_age)))} / yr
                   </span>
                 </div>
                 <div className="flex justify-between text-slate-700">
                   <span>Per-Kilometre Value Cost:</span>
                   <span className="text-slate-900 font-bold">
-                    ~₹{(dep.depreciation_amount / Math.max(1, carInput.km_driven)).toFixed(2)} / km
+                    ~₹{(dep.value_cost_per_km ?? (dep.depreciation_amount / Math.max(1, carInput.km_driven))).toFixed(2)} / km
                   </span>
                 </div>
               </div>
@@ -305,59 +304,59 @@ export const ResultsPage: React.FC = () => {
             </div>
           )}
 
-          {/* Concept 2: MoTeC Chassis Dyno Telemetry Retention Curve */}
+          {/* Interactive 10-Year Lifecycle Resale Trajectory & Strategy Planner */}
           <DynoTelemetryCurve
             originalPrice={dep?.original_price || (carResult.estimated_resale_price * 1.45)}
             currentResalePrice={carResult.estimated_resale_price}
             vehicleAge={carResult.vehicle_summary.vehicle_age}
             fuel={carInput.fuel}
             segment={carResult.vehicle_summary.segment}
+            brand={carInput.brand}
+            model={carInput.model}
+            kmDriven={carInput.km_driven}
           />
 
-          {/* Battery Health Valuation Impact Callout */}
+          {/* Battery Health Diagnostic Assessment Callout */}
           {carResult.battery_valuation_impact && (
             <div className={`p-4 rounded-xl border space-y-3 ${
               carResult.battery_valuation_impact.is_eol_override
                 ? 'bg-rose-50/70 border-rose-200'
-                : carResult.battery_valuation_impact.adjustment_inr >= 0
-                ? 'bg-emerald-50/70 border-emerald-200'
-                : 'bg-amber-50/70 border-amber-200'
+                : carResult.battery_valuation_impact.adjustment_inr !== 0
+                ? (carResult.battery_valuation_impact.adjustment_inr > 0 ? 'bg-emerald-50/70 border-emerald-200' : 'bg-amber-50/70 border-amber-200')
+                : 'bg-cyan-50/70 border-cyan-200'
             }`}>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <span className="text-xs font-bold font-mono text-slate-900 flex items-center gap-1.5">
-                  <BatteryCharging className="w-4 h-4 text-slate-900" />
-                  <span>Battery Health Resale Impact</span>
+                  <BatteryCharging className="w-4 h-4 text-cyan-700" />
+                  <span>EV Battery Health Assessment</span>
                 </span>
                 <div className="flex items-center gap-2">
-                  {carResult.battery_valuation_impact.rule_precedence && (
-                    <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-semibold ${
-                      carResult.battery_valuation_impact.is_eol_override
-                        ? 'bg-slate-900 text-white'
-                        : 'bg-slate-100 text-slate-800 border border-slate-300'
-                    }`}>
-                      {carResult.battery_valuation_impact.rule_precedence}
-                    </span>
-                  )}
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full font-semibold bg-white text-slate-800 border border-slate-300">
+                    {carResult.battery_valuation_impact.rule_precedence || 'Independent Diagnostic'}
+                  </span>
                   <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded-full border ${
-                    carResult.battery_valuation_impact.adjustment_inr >= 0
+                    carResult.battery_valuation_impact.adjustment_inr === 0
+                      ? 'bg-cyan-100 text-cyan-900 border-cyan-300'
+                      : carResult.battery_valuation_impact.adjustment_inr > 0
                       ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
                       : 'bg-rose-100 text-rose-900 border-rose-300'
                   }`}>
-                    {carResult.battery_valuation_impact.adjustment_percent >= 0 ? '+' : ''}
-                    {carResult.battery_valuation_impact.adjustment_percent}% ({formatINR(carResult.battery_valuation_impact.adjustment_inr)})
+                    {carResult.battery_valuation_impact.adjustment_inr === 0
+                      ? 'Zero Price Deduction'
+                      : `${carResult.battery_valuation_impact.adjustment_percent >= 0 ? '+' : ''}${carResult.battery_valuation_impact.adjustment_percent}% (${formatINR(carResult.battery_valuation_impact.adjustment_inr)})`}
                   </span>
                 </div>
               </div>
 
-              {/* Component-level breakdown when EOL Override is triggered */}
-              {carResult.battery_valuation_impact.is_eol_override && carResult.battery_valuation_impact.baseline_market_value && (
-                <div className="p-3 rounded-lg bg-white/95 border border-rose-200 shadow-2xs space-y-2 font-mono">
+              {/* Component-level breakdown when battery impact is evaluated */}
+              {carResult.battery_valuation_impact.baseline_market_value && (
+                <div className="p-3 rounded-lg bg-white/95 border border-slate-200 shadow-2xs space-y-2 font-mono">
                   <div className="font-bold text-slate-900 flex items-center justify-between text-[11px] pb-1 border-b border-slate-100">
-                    <span className="flex items-center gap-1 text-rose-900">
-                      <Zap className="w-3 h-3 text-rose-600" />
-                      <span>Component-Level Override Breakdown (Double-Counting Protected)</span>
+                    <span className="flex items-center gap-1 text-slate-900">
+                      <Zap className="w-3 h-3 text-cyan-600" />
+                      <span>Decoupled Valuation Flow (Vehicle Value Unpenalized)</span>
                     </span>
-                    <span className="text-emerald-700 font-semibold text-[10px]">De-stacked Formula</span>
+                    <span className="text-cyan-700 font-semibold text-[10px]">Authoritative Pipeline</span>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
                     <div className="p-2 rounded bg-slate-50 border border-slate-200">
@@ -367,9 +366,11 @@ export const ResultsPage: React.FC = () => {
                       </span>
                     </div>
                     <div className="p-2 rounded bg-slate-50 border border-slate-200">
-                      <span className="text-[10px] text-slate-500 block">Net Battery Deduction</span>
-                      <span className="font-bold text-rose-700">
-                        -{formatINR(carResult.battery_valuation_impact.replacement_pack_cost_estimate || 0)}
+                      <span className="text-[10px] text-slate-500 block">Battery Deduction</span>
+                      <span className="font-bold text-emerald-700">
+                        {carResult.battery_valuation_impact.adjustment_inr === 0
+                          ? '₹0 (Decoupled)'
+                          : formatINR(carResult.battery_valuation_impact.adjustment_inr)}
                       </span>
                     </div>
                     <div className="p-2 rounded bg-slate-50 border border-slate-200">
@@ -379,12 +380,34 @@ export const ResultsPage: React.FC = () => {
                       </span>
                     </div>
                     <div className="p-2 rounded bg-emerald-50 border border-emerald-200">
-                      <span className="text-[10px] text-emerald-800 block">Net Valuation</span>
+                      <span className="text-[10px] text-emerald-800 block">Final Valuation</span>
                       <span className="font-bold text-emerald-900">
                         {formatINR(carResult.estimated_resale_price)}
                       </span>
                     </div>
                   </div>
+
+                  {/* Informational Diagnostic Repair Cost Estimates */}
+                  {carResult.battery_valuation_impact.repair_cost_tiers && (
+                    <div className="pt-2 border-t border-slate-100 space-y-1.5">
+                      <span className="text-[10px] font-bold text-slate-700 block uppercase tracking-wider">
+                        Informational Diagnostic Repair Options (Not Automatically Deducted)
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 text-[10px]">
+                        {carResult.battery_valuation_impact.repair_cost_tiers.map((tier, idx) => (
+                          <div key={idx} className="p-1.5 rounded bg-slate-50 border border-slate-200 space-y-0.5">
+                            <span className="font-bold text-slate-800 block truncate">{tier.name}</span>
+                            <span className="text-slate-600 block font-semibold">
+                              {formatINR(tier.estimated_cost_inr_range[0])} - {formatINR(tier.estimated_cost_inr_range[1])}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <span className="text-[9px] text-slate-400 block italic leading-tight">
+                        *Low SOH estimate alone does not imply complete pack replacement; workshop diagnostics (cell balancing, fault DTCs) are required before major repair decisions.
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -522,15 +545,6 @@ export const ResultsPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Concept 2: EV Skateboard Chassis Wireframe Blueprint & 16-Module Thermal Heatmap */}
-                <EVSkateboardChassis
-                  sohPercent={batteryResult.predicted_soh_percent}
-                  cycleCount={batteryResult.supporting_measurements.cycle_count}
-                  voltageSpread={batteryResult.supporting_measurements.voltage_spread_v}
-                  tempPeak={batteryResult.supporting_measurements.peak_temperature_c}
-                  ambientTemp={batteryResult.supporting_measurements.ambient_temp_c}
-                />
-
                 {/* Battery Health Valuation Financial Delta */}
                 {carResult.battery_valuation_impact && (
                   <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-2xs space-y-2 font-mono">
@@ -566,7 +580,7 @@ export const ResultsPage: React.FC = () => {
                 <div className="p-3 rounded-lg bg-white border border-slate-200 text-[11px] text-slate-600 flex items-start gap-2">
                   <ShieldAlert className="w-4 h-4 text-slate-900 shrink-0 mt-0.5" />
                   <span>
-                    Validation Strategy: Zero-Leakage Cell-Holdout. Test MAE = 2.69% on unseen physical NASA battery cells.
+                    Validation Strategy: Held-Out Physical Cell Validation. Test MAE = 8.31% on unseen physical NASA battery cells.
                   </span>
                 </div>
               </div>

@@ -34,6 +34,57 @@
   }
 }
 
+.btn-primary-animated {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-primary-animated::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -60%;
+  width: 40%;
+  height: 200%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transform: rotate(25deg);
+  transition: none;
+  pointer-events: none;
+}
+
+.btn-primary-animated:hover::after {
+  left: 140%;
+  transition: left 0.75s ease-in-out;
+}
+
+.btn-primary-animated:hover {
+  transform: translateY(-1.5px);
+  box-shadow: 0 12px 28px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+}
+
+.btn-primary-animated:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+.btn-secondary-animated {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-secondary-animated:hover {
+  transform: translateY(-1.5px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+.btn-secondary-animated:active {
+  transform: translateY(1px) scale(0.98);
+}
+
 /* Automotive Cockpit Animations */
 @keyframes engine-start-pulse {
   0%, 100% {

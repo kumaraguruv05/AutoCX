@@ -134,13 +134,12 @@ export const CockpitGauges: React.FC<CockpitGaugesProps> = ({
             className={`px-3.5 py-1.5 rounded-xl border text-xs font-mono font-bold flex items-center gap-2 shadow-md transition-all cursor-pointer ${
               isManualRevving
                 ? 'bg-rose-950 border-rose-500 text-rose-200 shadow-[0_0_15px_rgba(244,63,94,0.5)] scale-95'
-                : 'bg-neutral-900 hover:bg-neutral-800 border-neutral-700 hover:border-rose-500/80 text-white hover:scale-105 active:scale-95'
+                : 'bg-neutral-900 hover:bg-neutral-800 border-neutral-700 hover:border-neutral-500 text-neutral-200 hover:text-white hover:scale-105 active:scale-95'
             }`}
-            title="Throttle Blip / Rev Engine"
+            title="Trigger instrument needle sweep"
           >
-            <span className={`w-2 h-2 rounded-full ${isManualRevving ? 'bg-rose-400 animate-ping' : 'bg-rose-500'}`} />
-            <span>{isManualRevving ? 'REV LIMITER 🏁' : 'REV ENGINE'}</span>
-            <span className="text-xs">🏎️</span>
+            <span className={`w-2 h-2 rounded-full ${isManualRevving ? 'bg-rose-400 animate-ping' : 'bg-neutral-400'}`} />
+            <span>{isManualRevving ? 'RPM LIMIT' : 'TEST SWEEP'}</span>
           </button>
 
           <F1ShiftLights
@@ -255,7 +254,9 @@ export const CockpitGauges: React.FC<CockpitGaugesProps> = ({
                   {batterySoh.toFixed(1)}% SOH
                 </div>
                 <div className="text-xs font-mono text-neutral-300">
-                  Resale Impact: {batteryAdjustmentInr != null && batteryAdjustmentInr >= 0 ? '+' : ''}{batteryAdjustmentInr != null ? formatINR(batteryAdjustmentInr) : 'Evaluated'}
+                  {batteryAdjustmentInr != null && batteryAdjustmentInr !== 0
+                    ? `Resale Impact: ${batteryAdjustmentInr >= 0 ? '+' : ''}${formatINR(batteryAdjustmentInr)}`
+                    : 'Independent Diagnostic • Zero Price Penalty'}
                 </div>
               </>
             ) : (
@@ -281,13 +282,13 @@ export const CockpitGauges: React.FC<CockpitGaugesProps> = ({
         {/* ================= GAUGE 1: TACHOMETER (RETENTION RPM & INTERACTIVE REV TARGET) ================= */}
         <div
           onClick={triggerRev}
-          title="Click to rev engine! 🏎️"
-          className="relative flex flex-col items-center justify-center p-4 rounded-2xl bg-neutral-900/80 border border-neutral-800 shadow-inner cursor-pointer group hover:border-rose-500/50 hover:shadow-[0_0_20px_rgba(244,63,94,0.25)] active:scale-[0.99] transition-all"
+          title="Click to trigger needle sweep"
+          className="relative flex flex-col items-center justify-center p-4 rounded-2xl bg-neutral-900/80 border border-neutral-800 shadow-inner cursor-pointer group hover:border-neutral-600 hover:shadow-[0_0_20px_rgba(255,255,255,0.05)] active:scale-[0.99] transition-all"
         >
           {/* Tap to rev badge in corner */}
-          <div className="absolute top-3 left-3 flex items-center gap-1.5 text-[9px] font-mono font-bold text-neutral-400 group-hover:text-rose-400 transition-colors">
-            <span className="w-2 h-2 rounded-full bg-rose-500 group-hover:animate-ping" />
-            <span>CLICK TO REV 🏁</span>
+          <div className="absolute top-3 left-3 flex items-center gap-1.5 text-[9px] font-mono font-bold text-neutral-400 group-hover:text-neutral-200 transition-colors">
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 group-hover:animate-ping" />
+            <span>CALIBRATE SWEEP</span>
           </div>
 
           <div className="relative w-48 h-48 sm:w-56 sm:h-56 flex items-center justify-center mt-2">

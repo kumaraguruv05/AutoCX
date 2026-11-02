@@ -2,6 +2,10 @@
 Preprocess NASA Ames Li-ion Battery Aging Datasets.
 Extracts cycle-level operational measurements and ground-truth capacity/SOH
 from MATLAB .mat files across all extracted battery cells.
+
+Formula:
+SOH (%) = Current measured capacity / Initial reference capacity * 100
+where Initial reference capacity = max(measured_capacity) for that cell on valid discharge cycles.
 """
 
 import os
@@ -42,8 +46,33 @@ def extract_battery_cycles() -> pd.DataFrame:
                 
             cycles = struct["cycle"][0, 0]
             num_cycles = cycles.shape[1]
-            discharge_idx = 0
             
+            # Step 1: Discover initial reference capacity for this specific cell.
+            # Only consider complete discharge cycles with duration >= 500s and capacity > 0.5 Ah.
+            valid_discharges = []
+            for i in range(num_cycles):
+                if str(cycles["type"][0, i][0]) != "discharge":
+                    continue
+                data = cycles["data"][0, i]
+                if "Capacity" not in data.dtype.names or data["Capacity"][0, 0].size == 0:
+                    continue
+                cap = float(data["Capacity"][0, 0][0, 0])
+                if cap <= 0.5:
+                    continue
+                t = data["Time"][0, 0].flatten() if "Time" in data.dtype.names and data["Time"][0, 0].size > 0 else np.array([])
+                duration = float(t[-1] - t[0]) if len(t) > 1 else 0.0
+                if duration < 500.0:
+                    continue
+                valid_discharges.append((i, cap, duration))
+                
+            if not valid_discharges:
+                print(f"Skipping {cell_id}: No valid discharge cycles with capacity > 0.5 Ah and duration >= 500s")
+                continue
+                
+            ref_capacity_ah = max(c[1] for c in valid_discharges)
+            
+            # Step 2: Extract cycle measurements and compute SOH relative to ref_capacity_ah
+            discharge_idx = 0
             for i in range(num_cycles):
                 ctype = str(cycles["type"][0, i][0])
                 if ctype != "discharge":
@@ -59,12 +88,10 @@ def extract_battery_cycles() -> pd.DataFrame:
                         amb_temp = float(temp_val[0, 0])
                 
                 data = cycles["data"][0, i]
-                
-                # Ground truth capacity (Ahr)
                 if "Capacity" not in data.dtype.names or data["Capacity"][0, 0].size == 0:
                     continue
                 cap = float(data["Capacity"][0, 0][0, 0])
-                if cap <= 0:
+                if cap <= 0.5:
                     continue
                     
                 # Time-series vectors
@@ -74,6 +101,10 @@ def extract_battery_cycles() -> pd.DataFrame:
                 t = data["Time"][0, 0].flatten() if "Time" in data.dtype.names and data["Time"][0, 0].size > 0 else np.array([])
                 
                 if len(V) < 10 or len(t) < 10:
+                    continue
+                
+                discharge_duration = float(t[-1] - t[0]) if len(t) > 1 else 0.0
+                if discharge_duration < 500.0:
                     continue
                 
                 v_max = float(np.max(V))
@@ -88,14 +119,10 @@ def extract_battery_cycles() -> pd.DataFrame:
                 t_mean = float(np.mean(T)) if len(T) > 0 else amb_temp
                 t_min = float(np.min(T)) if len(T) > 0 else amb_temp
                 
-                discharge_duration = float(t[-1] - t[0]) if len(t) > 1 else 0.0
-                
-                # Rated nominal capacity for NASA 18650 Li-ion cells is 2.0 Ahr
-                rated_capacity_ah = 2.0
-                soh_percent = (cap / rated_capacity_ah) * 100.0
+                # SOH (%) = (Current measured capacity / Initial reference capacity) * 100
+                soh_percent = min(100.0, (cap / ref_capacity_ah) * 100.0)
                 
                 # Estimated internal resistance at discharge step (Delta V / Delta I)
-                # Using initial voltage drop during first seconds
                 internal_resistance_ohm = np.nan
                 if len(V) >= 5 and len(I) >= 5:
                     delta_v = abs(V[0] - V[min(4, len(V)-1)])
@@ -118,7 +145,7 @@ def extract_battery_cycles() -> pd.DataFrame:
                     "temp_min_c": t_min,
                     "discharge_duration_sec": discharge_duration,
                     "internal_resistance_ohm": internal_resistance_ohm,
-                    "rated_capacity_ah": rated_capacity_ah,
+                    "ref_capacity_ah": ref_capacity_ah,
                     "measured_capacity_ah": cap,
                     "soh_percent": soh_percent
                 })
@@ -128,22 +155,17 @@ def extract_battery_cycles() -> pd.DataFrame:
     df = pd.DataFrame(records)
     print(f"Raw extracted records: {len(df)} across {df['cell_id'].nunique()} cells")
     
-    # Impute internal resistance with group median if missing
-    overall_ir_median = df["internal_resistance_ohm"].median()
-    df["internal_resistance_ohm"] = df["internal_resistance_ohm"].fillna(overall_ir_median)
-    
-    # Filter valid SOH range (NASA cells degrade from ~100% down to ~50% at EOL)
-    df_clean = df[(df["soh_percent"] >= 40.0) & (df["soh_percent"] <= 110.0)].copy()
+    # Do NOT impute internal_resistance_ohm with global median here to prevent data leakage.
+    # Imputation is performed inside the sklearn training pipeline fit only on train cells.
     
     # Sort by cell and cycle order
-    df_clean = df_clean.sort_values(by=["cell_id", "cycle"]).reset_index(drop=True)
+    df_clean = df.sort_values(by=["cell_id", "cycle"]).reset_index(drop=True)
     
     out_file = os.path.join(PROCESSED_DIR, "battery_soh_processed.csv")
     df_clean.to_csv(out_file, index=False)
     print(f"Saved processed battery SOH dataset to: {out_file}")
     print(f"Clean records: {len(df_clean)}, Cells: {df_clean['cell_id'].nunique()}")
     print(f"SOH summary:\n{df_clean['soh_percent'].describe()}")
-    print(f"Cells included:\n{df_clean['cell_id'].value_counts()}")
     return df_clean
 
 if __name__ == "__main__":

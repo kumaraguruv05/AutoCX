@@ -71,16 +71,16 @@ export const LandingPage: React.FC = () => {
               <div className="text-xs text-slate-500 mt-1">Vehicle Transactions</div>
             </div>
             <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs hover:border-slate-300 hover:shadow-sm transition-all">
-              <div className="text-2xl font-bold font-mono text-emerald-600">0.9386</div>
-              <div className="text-xs text-slate-500 mt-1">Resale Model R²</div>
+              <div className="text-2xl font-bold font-mono text-emerald-600">0.80</div>
+              <div className="text-xs text-slate-500 mt-1">Resale Model R² (Holdout)</div>
             </div>
             <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs hover:border-slate-300 hover:shadow-sm transition-all">
               <div className="text-2xl font-bold font-mono text-sky-600">34 Cells</div>
               <div className="text-xs text-slate-500 mt-1">NASA Battery Aging</div>
             </div>
             <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs hover:border-slate-300 hover:shadow-sm transition-all">
-              <div className="text-2xl font-bold font-mono text-blue-600">2.69%</div>
-              <div className="text-xs text-slate-500 mt-1">Battery SOH Test MAE</div>
+              <div className="text-2xl font-bold font-mono text-blue-600">8.31%</div>
+              <div className="text-xs text-slate-500 mt-1">Battery SOH Test MAE (Cells)</div>
             </div>
           </div>
         </div>
@@ -179,8 +179,8 @@ export const LandingPage: React.FC = () => {
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-start gap-2.5">
               <Cpu className="w-4 h-4 text-cyan-700 shrink-0 mt-0.5" />
               <div>
-                <strong className="text-slate-900 block font-semibold mb-0.5">No Fabricated Metrics:</strong>
-                All reported R² (0.9386 for cars, 0.9227 for batteries) and MAE figures come from true test evaluations on out-of-sample data.
+                <strong className="text-slate-900 block font-semibold mb-0.5">Empirical Holdout Evaluation:</strong>
+                Reported R² (~0.80 for car resale, ~0.63 for battery SOH) and MAE figures come from true out-of-sample holdout evaluations.
               </div>
             </div>
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-start gap-2.5">

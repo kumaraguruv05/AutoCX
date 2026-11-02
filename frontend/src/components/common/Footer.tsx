@@ -68,7 +68,7 @@ export const Footer: React.FC = () => {
 
         <div className="pt-8 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
           <p>© {new Date().getFullYear()} AutoCX — Auto ChronAx Platform. Built with Google Antigravity.</p>
-          <p className="font-mono text-[11px] text-slate-500">Dual ML: Ridge Regressor (R²=0.9386) & XGBoost (R²=0.9227)</p>
+          <p className="font-mono text-[11px] text-slate-500">Dual ML: Car Resale Engine (R²=0.80) & NASA Battery SOH Engine (R²=0.63, MAE=8.3%)</p>
         </div>
       </div>
     </footer>
