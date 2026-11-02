@@ -9,6 +9,8 @@ The name **ChronAx** derives from:
 
 AutoCX unites both concepts to communicate and quantify how vehicle value and battery longevity evolve over time.
 
+👉 **New here? Check out the [Quickstart Guide](QUICKSTART.md) for 2-minute clone-and-run instructions.**
+
 ---
 
 ## 1. System Architecture
