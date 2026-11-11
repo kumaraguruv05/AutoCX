@@ -126,8 +126,8 @@ python src\ml\training\train_battery_model.py
 # Run automated test suite (25 test cases)
 python -m pytest
 
-# Launch FastAPI backend server
-uvicorn src.main:app --host 127.0.0.1 --port 8000 --reload
+# Launch FastAPI backend server (uses python -m to ensure Windows Smart App Control compatibility)
+python -m uvicorn src.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
 **On Linux / macOS (Bash):**
@@ -147,7 +147,7 @@ python src/ml/training/train_battery_model.py
 python -m pytest
 
 # Launch FastAPI server
-uvicorn src.main:app --host 127.0.0.1 --port 8000 --reload
+python -m uvicorn src.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 Interactive Swagger API documentation will be available at: `http://127.0.0.1:8000/docs`
 

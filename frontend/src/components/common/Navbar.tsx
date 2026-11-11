@@ -9,16 +9,29 @@ export const Navbar: React.FC = () => {
 
   useEffect(() => {
     let isMounted = true;
-    apiClient
-      .getHealth()
-      .then((res) => {
-        if (isMounted) setApiHealthy(res.status === 'healthy');
-      })
-      .catch(() => {
-        if (isMounted) setApiHealthy(false);
-      });
+    let timerId: number | undefined;
+
+    const checkHealth = async () => {
+      try {
+        const res = await apiClient.getHealth();
+        if (!isMounted) return;
+        const healthy = res.status === 'healthy';
+        setApiHealthy(healthy);
+        timerId = window.setTimeout(checkHealth, healthy ? 15000 : 2000);
+      } catch {
+        if (!isMounted) return;
+        setApiHealthy(false);
+        timerId = window.setTimeout(checkHealth, 2000);
+      }
+    };
+
+    checkHealth();
+
     return () => {
       isMounted = false;
+      if (timerId !== undefined) {
+        window.clearTimeout(timerId);
+      }
     };
   }, []);
 
